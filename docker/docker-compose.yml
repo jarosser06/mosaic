@@ -1,0 +1,50 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mosaic-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mosaic}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-mosaic}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mosaic}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mosaic-network
+
+  mosaic:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: production
+    container_name: mosaic-server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-mosaic}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-mosaic}
+      APSCHEDULER_JOB_STORE_URL: postgresql+asyncpg://${POSTGRES_USER:-mosaic}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-mosaic}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      NOTIFICATION_ENABLED: "true"
+      NOTIFICATION_BRIDGE_URL: http://host.docker.internal:8765
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    networks:
+      - mosaic-network
+
+volumes:
+  postgres-data:
+    driver: local
+
+networks:
+  mosaic-network:
+    driver: bridge

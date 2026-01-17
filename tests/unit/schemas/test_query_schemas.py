@@ -216,7 +216,7 @@ def test_reminder_result_discriminator():
         message="Call client",
         entity_type_attached=EntityType.CLIENT,
         entity_id_attached=5,
-        completed_at=None,
+        is_completed=False,
         snoozed_until=None,
         tags=["urgent"],
         created_at=created,

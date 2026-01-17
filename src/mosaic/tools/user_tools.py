@@ -1,17 +1,18 @@
 """User profile management tools."""
 
 from datetime import datetime, timezone
+from typing import Any
 
 from mcp.server.fastmcp import Context
 
 from ..models.base import WeekBoundary
 from ..repositories.user_repository import UserRepository
 from ..schemas.user import GetUserOutput, UpdateUserInput, UpdateUserOutput
-from ..server import mcp
+from ..server import AppContext, mcp
 
 
 @mcp.tool()
-async def get_user_profile(ctx: Context) -> GetUserOutput:
+async def get_user_profile(ctx: Context[Any, AppContext, Any]) -> GetUserOutput:
     """
     Get the current user profile.
 
@@ -60,7 +61,9 @@ async def get_user_profile(ctx: Context) -> GetUserOutput:
 
 
 @mcp.tool()
-async def update_user_profile(input: UpdateUserInput, ctx: Context) -> UpdateUserOutput:
+async def update_user_profile(
+    input: UpdateUserInput, ctx: Context[Any, AppContext, Any]
+) -> UpdateUserOutput:
     """
     Create or update the user profile.
 
@@ -88,7 +91,7 @@ async def update_user_profile(input: UpdateUserInput, ctx: Context) -> UpdateUse
         user = await repo.get_current_user()
 
         # Build update data
-        update_data = {}
+        update_data: dict[str, Any] = {}
 
         if input.full_name is not None:
             update_data["full_name"] = input.full_name

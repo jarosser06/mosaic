@@ -21,7 +21,7 @@ from ..schemas.reminder import (
     SnoozeReminderOutput,
 )
 from ..schemas.work_session import UpdateWorkSessionInput, UpdateWorkSessionOutput
-from ..server import mcp
+from ..server import AppContext, mcp
 from ..services.meeting_service import MeetingService
 from ..services.reminder_service import ReminderService
 from ..services.work_session_service import WorkSessionService
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 @mcp.tool()
 async def update_work_session(
-    work_session_id: int, input: UpdateWorkSessionInput, ctx: Context
+    work_session_id: int, input: UpdateWorkSessionInput, ctx: Context[Any, AppContext, Any]
 ) -> UpdateWorkSessionOutput:
     """
     Update an existing work session.
@@ -101,7 +101,7 @@ async def update_work_session(
 
 @mcp.tool()
 async def update_meeting(
-    meeting_id: int, input: UpdateMeetingInput, ctx: Context
+    meeting_id: int, input: UpdateMeetingInput, ctx: Context[Any, AppContext, Any]
 ) -> UpdateMeetingOutput:
     """
     Update an existing meeting.
@@ -169,7 +169,7 @@ async def update_meeting(
 
 @mcp.tool()
 async def update_person(
-    person_id: int, input: UpdatePersonInput, ctx: Context
+    person_id: int, input: UpdatePersonInput, ctx: Context[Any, AppContext, Any]
 ) -> UpdatePersonOutput:
     """
     Update an existing person.
@@ -210,6 +210,8 @@ async def update_person(
                 update_data["tags"] = input.tags
 
             person = await repo.update(person_id, **update_data)
+            if person is None:
+                raise ValueError("Person with ID {person_id} not found")
 
             # Commit transaction
             await session.commit()
@@ -236,7 +238,7 @@ async def update_person(
 
 @mcp.tool()
 async def update_client(
-    client_id: int, input: UpdateClientInput, ctx: Context
+    client_id: int, input: UpdateClientInput, ctx: Context[Any, AppContext, Any]
 ) -> UpdateClientOutput:
     """
     Update an existing client.
@@ -277,6 +279,8 @@ async def update_client(
                 update_data["tags"] = input.tags
 
             client = await repo.update(client_id, **update_data)
+            if client is None:
+                raise ValueError("Client with ID {client_id} not found")
 
             # Commit transaction
             await session.commit()
@@ -303,7 +307,7 @@ async def update_client(
 
 @mcp.tool()
 async def update_project(
-    project_id: int, input: UpdateProjectInput, ctx: Context
+    project_id: int, input: UpdateProjectInput, ctx: Context[Any, AppContext, Any]
 ) -> UpdateProjectOutput:
     """
     Update an existing project.
@@ -344,6 +348,8 @@ async def update_project(
                 update_data["tags"] = input.tags
 
             project = await repo.update(project_id, **update_data)
+            if project is None:
+                raise ValueError("Project with ID {project_id} not found")
 
             # Commit transaction
             await session.commit()
@@ -369,7 +375,9 @@ async def update_project(
 
 
 @mcp.tool()
-async def update_note(note_id: int, input: UpdateNoteInput, ctx: Context) -> UpdateNoteOutput:
+async def update_note(
+    note_id: int, input: UpdateNoteInput, ctx: Context[Any, AppContext, Any]
+) -> UpdateNoteOutput:
     """
     Update an existing note.
 
@@ -406,6 +414,8 @@ async def update_note(note_id: int, input: UpdateNoteInput, ctx: Context) -> Upd
                 update_data["tags"] = input.tags
 
             note = await repo.update(note_id, **update_data)
+            if note is None:
+                raise ValueError("Note with ID {note_id} not found")
 
             # Commit transaction
             await session.commit()
@@ -430,7 +440,9 @@ async def update_note(note_id: int, input: UpdateNoteInput, ctx: Context) -> Upd
 
 
 @mcp.tool()
-async def complete_reminder(input: CompleteReminderInput, ctx: Context) -> CompleteReminderOutput:
+async def complete_reminder(
+    input: CompleteReminderInput, ctx: Context[Any, AppContext, Any]
+) -> CompleteReminderOutput:
     """
     Mark a reminder as completed.
 
@@ -473,6 +485,7 @@ async def complete_reminder(input: CompleteReminderInput, ctx: Context) -> Compl
             # Return next occurrence if it exists, otherwise return the completed reminder
             reminder_to_return = next_reminder if next_reminder else original_reminder
             await session.refresh(reminder_to_return)
+            await session.refresh(original_reminder)  # Ensure we have the updated time
 
             return CompleteReminderOutput(
                 id=reminder_to_return.id,
@@ -480,9 +493,8 @@ async def complete_reminder(input: CompleteReminderInput, ctx: Context) -> Compl
                 message=reminder_to_return.message,
                 entity_type=reminder_to_return.related_entity_type,
                 entity_id=reminder_to_return.related_entity_id,
-                completed_at=(
-                    reminder_to_return.updated_at if reminder_to_return.is_completed else None
-                ),
+                # Use original reminder's update time as completion time
+                completed_at=original_reminder.updated_at,
                 snoozed_until=reminder_to_return.snoozed_until,
                 tags=reminder_to_return.tags or [],
                 created_at=reminder_to_return.created_at,
@@ -495,7 +507,9 @@ async def complete_reminder(input: CompleteReminderInput, ctx: Context) -> Compl
 
 
 @mcp.tool()
-async def snooze_reminder(input: SnoozeReminderInput, ctx: Context) -> SnoozeReminderOutput:
+async def snooze_reminder(
+    input: SnoozeReminderInput, ctx: Context[Any, AppContext, Any]
+) -> SnoozeReminderOutput:
     """
     Snooze a reminder to a new time.
 
@@ -523,6 +537,9 @@ async def snooze_reminder(input: SnoozeReminderInput, ctx: Context) -> SnoozeRem
             await session.commit()
 
             logger.info(f"Snoozed reminder {input.reminder_id} until {input.snooze_until}")
+
+            if reminder.snoozed_until is None:
+                raise ValueError("Reminder snooze failed - snoozed_until is None")
 
             return SnoozeReminderOutput(
                 id=reminder.id,

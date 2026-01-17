@@ -18,7 +18,7 @@ from ..schemas.person import AddPersonInput, AddPersonOutput
 from ..schemas.project import AddProjectInput, AddProjectOutput
 from ..schemas.reminder import AddReminderInput, AddReminderOutput
 from ..schemas.work_session import LogWorkSessionInput, LogWorkSessionOutput
-from ..server import mcp
+from ..server import AppContext, mcp
 from ..services.meeting_service import MeetingService
 from ..services.work_session_service import WorkSessionService
 
@@ -26,7 +26,9 @@ logger = logging.getLogger(__name__)
 
 
 @mcp.tool()
-async def log_work_session(input: LogWorkSessionInput, ctx: Context) -> LogWorkSessionOutput:
+async def log_work_session(
+    input: LogWorkSessionInput, ctx: Context[Any, AppContext, Any]
+) -> LogWorkSessionOutput:
     """
     Log a work session with automatic half-hour duration rounding.
 
@@ -83,7 +85,9 @@ async def log_work_session(input: LogWorkSessionInput, ctx: Context) -> LogWorkS
 
 
 @mcp.tool()
-async def log_meeting(input: LogMeetingInput, ctx: Context) -> LogMeetingOutput:
+async def log_meeting(
+    input: LogMeetingInput, ctx: Context[Any, AppContext, Any]
+) -> LogMeetingOutput:
     """
     Log a meeting with attendees and optional project association.
 
@@ -146,7 +150,7 @@ async def log_meeting(input: LogMeetingInput, ctx: Context) -> LogMeetingOutput:
 
 
 @mcp.tool()
-async def add_person(input: AddPersonInput, ctx: Context) -> AddPersonOutput:
+async def add_person(input: AddPersonInput, ctx: Context[Any, AppContext, Any]) -> AddPersonOutput:
     """
     Add a person to the contact database.
 
@@ -205,7 +209,7 @@ async def add_person(input: AddPersonInput, ctx: Context) -> AddPersonOutput:
 
 
 @mcp.tool()
-async def add_client(input: AddClientInput, ctx: Context) -> AddClientOutput:
+async def add_client(input: AddClientInput, ctx: Context[Any, AppContext, Any]) -> AddClientOutput:
     """
     Add a client organization or individual.
 
@@ -262,7 +266,9 @@ async def add_client(input: AddClientInput, ctx: Context) -> AddClientOutput:
 
 
 @mcp.tool()
-async def add_project(input: AddProjectInput, ctx: Context) -> AddProjectOutput:
+async def add_project(
+    input: AddProjectInput, ctx: Context[Any, AppContext, Any]
+) -> AddProjectOutput:
     """
     Add a project for a client.
 
@@ -319,7 +325,9 @@ async def add_project(input: AddProjectInput, ctx: Context) -> AddProjectOutput:
 
 
 @mcp.tool()
-async def add_employer(input: AddEmployerInput, ctx: Context) -> AddEmployerOutput:
+async def add_employer(
+    input: AddEmployerInput, ctx: Context[Any, AppContext, Any]
+) -> AddEmployerOutput:
     """
     Add an employer organization.
 
@@ -370,7 +378,7 @@ async def add_employer(input: AddEmployerInput, ctx: Context) -> AddEmployerOutp
 
 
 @mcp.tool()
-async def add_note(input: AddNoteInput, ctx: Context) -> AddNoteOutput:
+async def add_note(input: AddNoteInput, ctx: Context[Any, AppContext, Any]) -> AddNoteOutput:
     """
     Add a note (standalone or attached to an entity).
 
@@ -425,7 +433,9 @@ async def add_note(input: AddNoteInput, ctx: Context) -> AddNoteOutput:
 
 
 @mcp.tool()
-async def add_reminder(input: AddReminderInput, ctx: Context) -> AddReminderOutput:
+async def add_reminder(
+    input: AddReminderInput, ctx: Context[Any, AppContext, Any]
+) -> AddReminderOutput:
     """
     Add a reminder with due time and optional entity attachment.
 

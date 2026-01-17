@@ -29,5 +29,8 @@ class Reminder(Base, TimestampMixin):
     )
     related_entity_id: Mapped[Optional[int]] = mapped_column(Integer)
     snoozed_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    last_notified_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), index=True
+    )
 
     __table_args__ = (Index("ix_reminders_active", "reminder_time", "is_completed"),)

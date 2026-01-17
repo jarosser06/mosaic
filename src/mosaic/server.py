@@ -3,12 +3,12 @@
 import logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 
 from mcp.server.fastmcp import FastMCP
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
-from .config import settings
+from .config import Settings, settings
 from .services.database import async_session_factory, close_db, engine, init_db
 from .services.scheduler_service import SchedulerService
 
@@ -30,9 +30,9 @@ class AppContext:
     """
 
     engine: AsyncEngine
-    session_factory: async_sessionmaker
+    session_factory: "async_sessionmaker[Any]"
     scheduler: SchedulerService
-    settings: type[settings]
+    settings: "Settings"
 
 
 @asynccontextmanager
@@ -102,6 +102,7 @@ from .tools import (  # noqa: E402, F401
     logging_tools,
     notification_tools,
     query_tools,
+    timecard_tools,
     update_tools,
     user_tools,
 )

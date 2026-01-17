@@ -314,3 +314,111 @@ class TestReminderRepositoryActions:
         # No longer in active list
         active = await repo.list_active()
         assert len(active) == 0
+
+
+class TestReminderNotificationCooldown:
+    """Test notification cooldown feature to prevent spam."""
+
+    @pytest.fixture
+    async def repo(self, session: AsyncSession) -> ReminderRepository:
+        """Create reminder repository."""
+        return ReminderRepository(session)
+
+    @pytest.mark.asyncio
+    async def test_list_due_reminders_with_cooldown_excludes_recently_notified(
+        self, repo: ReminderRepository, session: AsyncSession
+    ):
+        """Test cooldown filter excludes reminders notified within cooldown period."""
+        # Create reminder due now, notified 30 minutes ago
+        reminder = Reminder(
+            reminder_time=datetime(2024, 1, 20, 10, 0, tzinfo=timezone.utc),
+            message="Recently Notified",
+            is_completed=False,
+            last_notified_at=datetime(2024, 1, 20, 9, 30, tzinfo=timezone.utc),
+        )
+        session.add(reminder)
+        await session.flush()
+
+        # Query with cooldown threshold of 10:00 (1 hour ago)
+        # Reminder was notified at 9:30, which is within cooldown
+        cooldown_since = datetime(2024, 1, 20, 9, 0, tzinfo=timezone.utc)
+        results = await repo.list_due_reminders(
+            before_time=datetime(2024, 1, 20, 11, 0, tzinfo=timezone.utc),
+            cooldown_since=cooldown_since,
+        )
+
+        assert len(results) == 0
+
+    @pytest.mark.asyncio
+    async def test_list_due_reminders_with_cooldown_includes_cooldown_expired(
+        self, repo: ReminderRepository, session: AsyncSession
+    ):
+        """Test cooldown filter includes reminders notified outside cooldown period."""
+        # Create reminder due now, notified 2 hours ago
+        reminder = Reminder(
+            reminder_time=datetime(2024, 1, 20, 10, 0, tzinfo=timezone.utc),
+            message="Cooldown Expired",
+            is_completed=False,
+            last_notified_at=datetime(2024, 1, 20, 8, 0, tzinfo=timezone.utc),
+        )
+        session.add(reminder)
+        await session.flush()
+
+        # Query with cooldown threshold of 9:00 (1 hour ago)
+        # Reminder was notified at 8:00, which is before cooldown
+        cooldown_since = datetime(2024, 1, 20, 9, 0, tzinfo=timezone.utc)
+        results = await repo.list_due_reminders(
+            before_time=datetime(2024, 1, 20, 11, 0, tzinfo=timezone.utc),
+            cooldown_since=cooldown_since,
+        )
+
+        assert len(results) == 1
+        assert results[0].message == "Cooldown Expired"
+
+    @pytest.mark.asyncio
+    async def test_list_due_reminders_with_cooldown_includes_never_notified(
+        self, repo: ReminderRepository, session: AsyncSession
+    ):
+        """Test cooldown filter includes reminders never notified."""
+        # Create reminder due now, never notified
+        reminder = Reminder(
+            reminder_time=datetime(2024, 1, 20, 10, 0, tzinfo=timezone.utc),
+            message="Never Notified",
+            is_completed=False,
+            last_notified_at=None,
+        )
+        session.add(reminder)
+        await session.flush()
+
+        # Query with cooldown threshold
+        cooldown_since = datetime(2024, 1, 20, 9, 0, tzinfo=timezone.utc)
+        results = await repo.list_due_reminders(
+            before_time=datetime(2024, 1, 20, 11, 0, tzinfo=timezone.utc),
+            cooldown_since=cooldown_since,
+        )
+
+        assert len(results) == 1
+        assert results[0].message == "Never Notified"
+
+    @pytest.mark.asyncio
+    async def test_list_due_reminders_without_cooldown_returns_all(
+        self, repo: ReminderRepository, session: AsyncSession
+    ):
+        """Test without cooldown parameter returns all due reminders."""
+        # Create reminder due now, notified recently
+        reminder = Reminder(
+            reminder_time=datetime(2024, 1, 20, 10, 0, tzinfo=timezone.utc),
+            message="Recently Notified",
+            is_completed=False,
+            last_notified_at=datetime(2024, 1, 20, 9, 30, tzinfo=timezone.utc),
+        )
+        session.add(reminder)
+        await session.flush()
+
+        # Query WITHOUT cooldown filter
+        results = await repo.list_due_reminders(
+            before_time=datetime(2024, 1, 20, 11, 0, tzinfo=timezone.utc)
+        )
+
+        # Should include all due reminders, regardless of notification time
+        assert len(results) == 1

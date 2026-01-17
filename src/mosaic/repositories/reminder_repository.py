@@ -35,22 +35,33 @@ class ReminderRepository(BaseRepository[Reminder]):
         )
         return list(result.scalars().all())
 
-    async def list_due_reminders(self, before_time: datetime) -> list[Reminder]:
+    async def list_due_reminders(
+        self, before_time: datetime, cooldown_since: datetime | None = None
+    ) -> list[Reminder]:
         """
         List reminders due before a specific time (not completed, not snoozed).
 
         Args:
-            before_time: Time threshold
+            before_time: Time threshold for reminder_time
+            cooldown_since: Optional cooldown threshold - skip reminders notified after this time
 
         Returns:
             list[Reminder]: Reminders due before this time
         """
-        result = await self.session.execute(
+        query = (
             select(Reminder)
             .where(Reminder.is_completed == False)  # noqa: E712
             .where(Reminder.reminder_time <= before_time)
             .where((Reminder.snoozed_until.is_(None)) | (Reminder.snoozed_until <= before_time))
         )
+
+        # Add cooldown filter if specified
+        if cooldown_since is not None:
+            query = query.where(
+                (Reminder.last_notified_at.is_(None)) | (Reminder.last_notified_at < cooldown_since)
+            )
+
+        result = await self.session.execute(query)
         return list(result.scalars().all())
 
     async def list_by_entity(self, entity_type: EntityType, entity_id: int) -> list[Reminder]:

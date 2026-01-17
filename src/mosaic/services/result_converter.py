@@ -1,6 +1,9 @@
 """Result converter service for query results."""
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from ..models.base import EntityType
 
 from ..models.client import Client
 from ..models.employer import Employer
@@ -93,6 +96,55 @@ class ResultConverter:
 
         return converted
 
+    def convert_entity_list(
+        self, entity_type: "EntityType", entities: list[Any]
+    ) -> list[QueryResultEntity]:
+        """
+        Convert list of SQLAlchemy entities to QueryResultEntity schemas.
+
+        Args:
+            entity_type: Type of entities in the list
+            entities: List of SQLAlchemy model instances
+
+        Returns:
+            list[QueryResultEntity]: Converted Pydantic schemas
+
+        Raises:
+            ValueError: If entity_type is not supported
+
+        Examples:
+            >>> converter = ResultConverter()
+            >>> ws_list = [ws1, ws2, ws3]
+            >>> results = converter.convert_entity_list(EntityType.WORK_SESSION, ws_list)
+            >>> len(results)
+            3
+        """
+        from ..models.base import EntityType as ET
+
+        converted: list[QueryResultEntity] = []
+
+        for entity in entities:
+            if entity_type == ET.WORK_SESSION:
+                converted.append(self._convert_work_session(entity))
+            elif entity_type == ET.MEETING:
+                converted.append(self._convert_meeting(entity))
+            elif entity_type == ET.PROJECT:
+                converted.append(self._convert_project(entity))
+            elif entity_type == ET.PERSON:
+                converted.append(self._convert_person(entity))
+            elif entity_type == ET.CLIENT:
+                converted.append(self._convert_client(entity))
+            elif entity_type == ET.EMPLOYER:
+                converted.append(self._convert_employer(entity))
+            elif entity_type == ET.NOTE:
+                converted.append(self._convert_note(entity))
+            elif entity_type == ET.REMINDER:
+                converted.append(self._convert_reminder(entity))
+            else:
+                raise ValueError(f"Unsupported entity type: {entity_type}")
+
+        return converted
+
     def _convert_work_session(self, ws: WorkSession) -> WorkSessionResult:
         """
         Convert WorkSession model to WorkSessionResult schema.
@@ -105,13 +157,14 @@ class ResultConverter:
         """
         return WorkSessionResult(
             id=ws.id,
+            date=ws.date,
             start_time=ws.start_time,
             end_time=ws.end_time,
             project_id=ws.project_id,
             duration_hours=ws.duration_hours,
             description=ws.summary,
             privacy_level=ws.privacy_level,
-            tags=[],  # WorkSession model doesn't have tags field yet
+            tags=ws.tags or [],
             created_at=ws.created_at,
             updated_at=ws.updated_at,
         )
@@ -271,7 +324,7 @@ class ResultConverter:
             message=reminder.message,  # Reminder model uses 'message' not 'text'
             entity_type_attached=reminder.related_entity_type,
             entity_id_attached=reminder.related_entity_id,
-            completed_at=None,  # Reminder model doesn't have completed_at field
+            is_completed=reminder.is_completed,
             snoozed_until=reminder.snoozed_until,
             tags=reminder.tags or [],
             created_at=reminder.created_at,

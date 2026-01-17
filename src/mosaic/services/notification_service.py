@@ -50,7 +50,7 @@ class NotificationService:
                 capabilities = await self.notifier.get_capabilities()
                 self._capabilities_checked = True
                 logger.info(f"Notification capabilities: {capabilities}")
-                return capabilities
+                return capabilities  # type: ignore[return-value]
             except Exception as e:
                 logger.warning(f"Could not check notification capabilities: {e}")
                 self._notifications_available = False

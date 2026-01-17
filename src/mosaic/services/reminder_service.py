@@ -5,6 +5,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..config import settings
 from ..models.reminder import Reminder
 from ..repositories.reminder_repository import ReminderRepository
 
@@ -146,14 +147,55 @@ class ReminderService:
         """
         Get all reminders that are due now (not completed, reminder_time <= now, not snoozed).
 
+        Applies notification cooldown filter to prevent spam - only returns reminders that
+        haven't been notified within the cooldown period.
+
         Returns:
-            list[Reminder]: List of due reminders
+            list[Reminder]: List of due reminders ready for notification
 
         Raises:
             None
         """
         now = datetime.now(datetime.now().astimezone().tzinfo)
-        return await self.repository.list_due_reminders(now)
+
+        # Calculate cooldown threshold
+        cooldown_minutes = settings.reminder_notification_cooldown_minutes
+        cooldown_since = now - timedelta(minutes=cooldown_minutes)
+
+        return await self.repository.list_due_reminders(now, cooldown_since=cooldown_since)
+
+    async def mark_notified(
+        self, reminder_id: int, notified_at: datetime | None = None
+    ) -> Reminder:
+        """
+        Mark a reminder as notified and optionally auto-complete if non-recurring.
+
+        Args:
+            reminder_id: ID of the reminder that was notified
+            notified_at: Timestamp of notification (defaults to now)
+
+        Returns:
+            Reminder: Updated reminder instance
+
+        Raises:
+            ValueError: If reminder not found
+        """
+        reminder = await self.repository.get_by_id(reminder_id)
+        if not reminder:
+            raise ValueError(f"Reminder with ID {reminder_id} not found")
+
+        # Update last_notified_at timestamp
+        if notified_at is None:
+            notified_at = datetime.now(datetime.now().astimezone().tzinfo)
+        reminder.last_notified_at = notified_at
+
+        # Auto-complete non-recurring reminders if configured
+        if settings.reminder_auto_complete_non_recurring and not reminder.recurrence_config:
+            reminder.is_completed = True
+
+        await self.session.flush()
+        await self.session.refresh(reminder)
+        return reminder
 
     def _validate_recurrence_config(self, config: dict[str, Any]) -> None:
         """

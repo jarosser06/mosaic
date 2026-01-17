@@ -724,3 +724,213 @@ Comprehensive integration tests should cover:
 - All levels
 
 See `tests/integration/test_query_tool.py` for full test suite.
+
+---
+
+# Structured Query Language (New)
+
+For precise, type-safe queries with complex filtering and aggregations, use the structured query DSL instead of natural language.
+
+## Overview
+
+The structured query DSL provides:
+- 15 filter operators (eq, ne, gt, contains, has_tag, etc.)
+- 6 aggregation functions (count, sum, avg, min, max, count_distinct)
+- Relationship path traversal (e.g., "project.client.name")
+- Time shortcuts (today, this_week, this_month, etc.)
+
+## Filter Operators
+
+### Comparison Operators
+- **eq** - Equal to
+- **ne** - Not equal to
+- **gt** - Greater than
+- **gte** - Greater than or equal
+- **lt** - Less than
+- **lte** - Less than or equal
+
+### Set Operators
+- **in** - Value in list
+- **not_in** - Value not in list
+
+### String Operators
+- **contains** - Case-insensitive substring match
+- **starts_with** - Case-insensitive starts with
+- **ends_with** - Case-insensitive ends with
+
+### Null Operators
+- **is_null** - Field is NULL
+- **is_not_null** - Field is NOT NULL
+
+### Array Operators (PostgreSQL)
+- **has_tag** - Array contains single value
+- **has_any_tag** - Array overlaps with list
+
+## Aggregation Functions
+
+- **count** - Count rows
+- **sum** - Sum values
+- **avg** - Average values
+- **min** - Minimum value
+- **max** - Maximum value
+- **count_distinct** - Count distinct values
+
+## Relationship Paths
+
+### Work Session
+- `project.name` - Project name
+- `project.client.name` - Client name
+- `project.client.contact_person.email` - Contact email
+- `project.employer.name` - Employer name
+
+### Meeting
+- `project.name` - Project name
+- `project.client.name` - Client name
+- `attendees.person.full_name` - Attendee names
+- `attendees.person.email` - Attendee emails
+
+### Project
+- `client.name` - Client name
+- `client.contact_person.full_name` - Contact person name
+- `employer.name` - Employer name
+
+## Example Structured Queries
+
+**Field Naming:** Use API/schema field names in queries (e.g., `on_behalf_of`), not database field names (e.g., `on_behalf_of_id`). The query system automatically handles field name mapping.
+
+### Simple Filter
+```json
+{
+  "entity_type": "work_session",
+  "filters": [
+    {"field": "date", "operator": "gte", "value": "this_month"}
+  ],
+  "limit": 100
+}
+```
+
+### Relationship Traversal
+```json
+{
+  "entity_type": "work_session",
+  "filters": [
+    {"field": "project.client.name", "operator": "eq", "value": "Acme Corp"}
+  ]
+}
+```
+
+### Aggregation with GROUP BY
+```json
+{
+  "entity_type": "work_session",
+  "filters": [
+    {"field": "date", "operator": "gte", "value": "this_week"}
+  ],
+  "aggregation": {
+    "function": "sum",
+    "field": "duration_hours",
+    "group_by": ["project.name"]
+  }
+}
+```
+
+### Multiple Filters
+```json
+{
+  "entity_type": "meeting",
+  "filters": [
+    {"field": "tags", "operator": "has_any_tag", "value": ["urgent", "client"]},
+    {"field": "start_time", "operator": "gte", "value": "this_week"}
+  ]
+}
+```
+
+### Complex Query
+```json
+{
+  "entity_type": "project",
+  "filters": [
+    {"field": "status", "operator": "eq", "value": "active"},
+    {"field": "client.contact_person.email", "operator": "ends_with", "value": "@acme.com"}
+  ],
+  "limit": 50
+}
+```
+
+### Null Checks
+```json
+{
+  "entity_type": "project",
+  "filters": [
+    {"field": "on_behalf_of", "operator": "is_null", "value": null}
+  ]
+}
+```
+
+**Note:** Use `on_behalf_of` (not `on_behalf_of_id`) when querying. The system automatically maps API field names to database field names.
+
+```json
+{
+  "entity_type": "project",
+  "filters": [
+    {"field": "on_behalf_of", "operator": "is_not_null", "value": null}
+  ]
+}
+```
+
+## Time Shortcuts
+
+- **today** - Current date
+- **this_week** - Start of current week (Monday)
+- **this_month** - Start of current month
+- **this_year** - Start of current year
+- **now** - Current datetime
+
+## Response Formats
+
+### Entity Query Response
+```json
+{
+  "entity_type": "work_session",
+  "results": [...],
+  "total_count": 15
+}
+```
+
+### Aggregation Response (Global)
+```json
+{
+  "entity_type": "work_session",
+  "aggregation": {
+    "function": "sum",
+    "field": "duration_hours",
+    "result": 42.5
+  }
+}
+```
+
+### Aggregation Response (Grouped)
+```json
+{
+  "entity_type": "work_session",
+  "aggregation": {
+    "function": "sum",
+    "field": "duration_hours",
+    "groups": [
+      {"group_values": ["Project Alpha"], "result": 24.5},
+      {"group_values": ["Project Beta"], "result": 18.0}
+    ]
+  },
+  "total_groups": 2
+}
+```
+
+## Migration from Natural Language
+
+The natural language `query` tool still works for simple queries. Use structured queries for:
+- Precise filtering with specific operators
+- Relationship traversal (multi-level joins)
+- Aggregations with GROUP BY
+- Complex queries with multiple conditions
+
+Both query methods coexist - use whichever fits your needs.

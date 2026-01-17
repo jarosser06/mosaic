@@ -56,6 +56,29 @@ class TestResultConverter:
         assert results == []
         assert isinstance(results, list)
 
+    def test_convert_results_with_missing_keys(self, converter: ResultConverter):
+        """Test converting results when some keys are missing from raw_results."""
+        ws = WorkSession(
+            id=1,
+            project_id=10,
+            date=datetime(2024, 1, 15, tzinfo=timezone.utc).date(),
+            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
+            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            duration_hours=Decimal("3.0"),
+            summary="Work",
+            privacy_level=PrivacyLevel.PRIVATE,
+            created_at=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+        )
+
+        # Only include work_sessions, omit all other keys
+        raw_results = {"work_sessions": [ws]}
+
+        results = converter.convert_results(raw_results)
+
+        assert len(results) == 1
+        assert isinstance(results[0], WorkSessionResult)
+
     def test_convert_work_session(self, converter: ResultConverter):
         """Test converting a work session."""
         ws = WorkSession(
@@ -164,6 +187,26 @@ class TestResultConverter:
         assert result.project_id is None
         assert result.tags == []
 
+    def test_convert_meeting_with_none_tags(self, converter: ResultConverter):
+        """Test converting a meeting when tags is None."""
+        meeting = Meeting(
+            id=3,
+            start_time=datetime(2024, 1, 17, 11, 0, tzinfo=timezone.utc),
+            duration_minutes=45,
+            title="Client Call",
+            summary="Discuss requirements",
+            privacy_level=PrivacyLevel.PRIVATE,
+            tags=None,
+            created_at=datetime(2024, 1, 17, 11, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2024, 1, 17, 11, 45, tzinfo=timezone.utc),
+        )
+        meeting.attendees = []
+
+        result = converter._convert_meeting(meeting)
+
+        assert result.id == 3
+        assert result.tags == []  # Should convert None to []
+
     def test_convert_project(self, converter: ResultConverter):
         """Test converting a project."""
         project = Project(
@@ -208,6 +251,23 @@ class TestResultConverter:
         assert result.on_behalf_of is None
         assert result.description is None
         assert result.tags == []
+
+    def test_convert_project_with_none_tags(self, converter: ResultConverter):
+        """Test converting a project when tags is None."""
+        project = Project(
+            id=3,
+            name="Internal Project",
+            client_id=52,
+            status=ProjectStatus.PAUSED,
+            tags=None,
+            created_at=datetime(2024, 1, 11, tzinfo=timezone.utc),
+            updated_at=datetime(2024, 1, 11, tzinfo=timezone.utc),
+        )
+
+        result = converter._convert_project(project)
+
+        assert result.id == 3
+        assert result.tags == []  # Should convert None to []
 
     def test_convert_person(self, converter: ResultConverter):
         """Test converting a person."""
@@ -256,6 +316,21 @@ class TestResultConverter:
         assert result.company is None
         assert result.title is None
 
+    def test_convert_person_with_none_tags(self, converter: ResultConverter):
+        """Test converting a person when tags is None."""
+        person = Person(
+            id=3,
+            full_name="Bob Wilson",
+            tags=None,
+            created_at=datetime(2024, 1, 6, tzinfo=timezone.utc),
+            updated_at=datetime(2024, 1, 6, tzinfo=timezone.utc),
+        )
+
+        result = converter._convert_person(person)
+
+        assert result.id == 3
+        assert result.tags == []  # Should convert None to []
+
     def test_convert_client(self, converter: ResultConverter):
         """Test converting a client."""
         client = Client(
@@ -301,6 +376,23 @@ class TestResultConverter:
         assert result.contact_person_id is None
         assert result.notes is None
 
+    def test_convert_client_with_none_tags(self, converter: ResultConverter):
+        """Test converting a client when tags is None."""
+        client = Client(
+            id=3,
+            name="TechStart Inc",
+            type=ClientType.COMPANY,
+            status=ClientStatus.ACTIVE,
+            tags=None,
+            created_at=datetime(2024, 1, 6, tzinfo=timezone.utc),
+            updated_at=datetime(2024, 1, 6, tzinfo=timezone.utc),
+        )
+
+        result = converter._convert_client(client)
+
+        assert result.id == 3
+        assert result.tags == []  # Should convert None to []
+
     def test_convert_employer(self, converter: ResultConverter):
         """Test converting an employer."""
         employer = Employer(
@@ -337,6 +429,21 @@ class TestResultConverter:
         assert result.name == "Freelance"
         assert result.notes is None
         assert result.tags == []
+
+    def test_convert_employer_with_none_tags(self, converter: ResultConverter):
+        """Test converting an employer when tags is None."""
+        employer = Employer(
+            id=3,
+            name="Contract Work",
+            tags=None,
+            created_at=datetime(2024, 1, 2, tzinfo=timezone.utc),
+            updated_at=datetime(2024, 1, 2, tzinfo=timezone.utc),
+        )
+
+        result = converter._convert_employer(employer)
+
+        assert result.id == 3
+        assert result.tags == []  # Should convert None to []
 
     def test_convert_note(self, converter: ResultConverter):
         """Test converting a note."""
@@ -383,12 +490,31 @@ class TestResultConverter:
         assert result.entity_type_attached == EntityType.WORK_SESSION
         assert result.entity_id_attached == 1
 
+    def test_convert_note_with_none_tags(self, converter: ResultConverter):
+        """Test converting a note when tags is None."""
+        note = Note(
+            id=3,
+            text="Quick note",
+            entity_type=EntityType.MEETING,
+            entity_id=10,
+            privacy_level=PrivacyLevel.PRIVATE,
+            tags=None,
+            created_at=datetime(2024, 1, 17, 10, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2024, 1, 17, 10, 0, tzinfo=timezone.utc),
+        )
+
+        result = converter._convert_note(note)
+
+        assert result.id == 3
+        assert result.tags == []  # Should convert None to []
+
     def test_convert_reminder(self, converter: ResultConverter):
         """Test converting a reminder."""
         reminder = Reminder(
             id=1,
             reminder_time=datetime(2024, 1, 20, 9, 0, tzinfo=timezone.utc),
             message="Call client",
+            is_completed=False,
             related_entity_type=EntityType.PROJECT,
             related_entity_id=50,
             snoozed_until=datetime(2024, 1, 19, 10, 0, tzinfo=timezone.utc),
@@ -407,7 +533,7 @@ class TestResultConverter:
         assert results[0].message == "Call client"
         assert results[0].entity_type_attached == EntityType.PROJECT
         assert results[0].entity_id_attached == 50
-        assert results[0].completed_at is None  # Model doesn't have completed_at
+        assert results[0].is_completed is False
         assert results[0].snoozed_until == datetime(2024, 1, 19, 10, 0, tzinfo=timezone.utc)
         assert results[0].tags == ["urgent", "client"]
 
@@ -417,6 +543,7 @@ class TestResultConverter:
             id=2,
             reminder_time=datetime(2024, 1, 21, 15, 0, tzinfo=timezone.utc),
             message="Team meeting",
+            is_completed=False,
             tags=[],
             created_at=datetime(2024, 1, 20, 10, 0, tzinfo=timezone.utc),
             updated_at=datetime(2024, 1, 20, 10, 0, tzinfo=timezone.utc),
@@ -428,6 +555,24 @@ class TestResultConverter:
         assert result.entity_type_attached is None
         assert result.entity_id_attached is None
         assert result.snoozed_until is None
+
+    def test_convert_reminder_with_none_tags(self, converter: ResultConverter):
+        """Test converting a reminder when tags is None."""
+        reminder = Reminder(
+            id=3,
+            reminder_time=datetime(2024, 1, 22, 14, 0, tzinfo=timezone.utc),
+            message="Review docs",
+            is_completed=True,
+            tags=None,
+            created_at=datetime(2024, 1, 21, 10, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2024, 1, 21, 14, 0, tzinfo=timezone.utc),
+        )
+
+        result = converter._convert_reminder(reminder)
+
+        assert result.id == 3
+        assert result.tags == []  # Should convert None to []
+        assert result.is_completed is True
 
     def test_convert_user(self, converter: ResultConverter):
         """Test converting a user."""
@@ -451,6 +596,24 @@ class TestResultConverter:
         assert results[0].email == "test@example.com"
         assert results[0].timezone == "America/New_York"
         assert results[0].week_boundary == WeekBoundary.SUNDAY_SATURDAY
+
+    def test_convert_user_minimal(self, converter: ResultConverter):
+        """Test converting a user with different week boundary."""
+        user = User(
+            id=2,
+            full_name="Another User",
+            email="another@example.com",
+            timezone="UTC",
+            week_boundary=WeekBoundary.MONDAY_FRIDAY,
+            created_at=datetime(2024, 1, 2, tzinfo=timezone.utc),
+            updated_at=datetime(2024, 1, 2, tzinfo=timezone.utc),
+        )
+
+        result = converter._convert_user(user)
+
+        assert result.id == 2
+        assert result.week_boundary == WeekBoundary.MONDAY_FRIDAY
+        assert result.timezone == "UTC"
 
     def test_convert_multiple_entity_types(self, converter: ResultConverter):
         """Test converting multiple entity types at once."""
@@ -576,6 +739,7 @@ class TestResultConverter:
             id=1,
             reminder_time=datetime(2024, 1, 20, 9, 0, tzinfo=timezone.utc),
             message="Reminder",
+            is_completed=False,
             created_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
             updated_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
         )
@@ -616,3 +780,40 @@ class TestResultConverter:
         assert isinstance(results[6], NoteResult)
         assert isinstance(results[7], ReminderResult)
         assert isinstance(results[8], UserResult)
+
+    def test_convert_multiple_instances_of_same_type(self, converter: ResultConverter):
+        """Test converting multiple instances of the same entity type."""
+        ws1 = WorkSession(
+            id=1,
+            project_id=10,
+            date=datetime(2024, 1, 15, tzinfo=timezone.utc).date(),
+            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
+            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            duration_hours=Decimal("3.0"),
+            summary="Morning work",
+            privacy_level=PrivacyLevel.PRIVATE,
+            created_at=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+        )
+
+        ws2 = WorkSession(
+            id=2,
+            project_id=11,
+            date=datetime(2024, 1, 15, tzinfo=timezone.utc).date(),
+            start_time=datetime(2024, 1, 15, 13, 0, tzinfo=timezone.utc),
+            end_time=datetime(2024, 1, 15, 17, 0, tzinfo=timezone.utc),
+            duration_hours=Decimal("4.0"),
+            summary="Afternoon work",
+            privacy_level=PrivacyLevel.INTERNAL,
+            created_at=datetime(2024, 1, 15, 13, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2024, 1, 15, 17, 0, tzinfo=timezone.utc),
+        )
+
+        raw_results = {"work_sessions": [ws1, ws2]}
+        results = converter.convert_results(raw_results)
+
+        assert len(results) == 2
+        assert results[0].id == 1
+        assert results[0].description == "Morning work"
+        assert results[1].id == 2
+        assert results[1].description == "Afternoon work"

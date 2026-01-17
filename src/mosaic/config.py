@@ -28,6 +28,20 @@ class Settings(BaseSettings):
         examples=["DEBUG", "INFO", "WARNING", "ERROR"],
     )
 
+    reminder_notification_cooldown_minutes: int = Field(
+        default=60,
+        description="Minimum minutes between notifications for same reminder (prevents spam)",
+        ge=1,
+        le=1440,  # Max 24 hours
+    )
+
+    reminder_auto_complete_non_recurring: bool = Field(
+        default=True,
+        description=(
+            "Automatically mark non-recurring reminders as completed " "after first notification"
+        ),
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

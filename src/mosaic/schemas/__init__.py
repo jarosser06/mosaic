@@ -70,6 +70,15 @@ from mosaic.schemas.query import (
     UserResult,
     WorkSessionResult,
 )
+from mosaic.schemas.query_structured import (
+    AggregationFunction,
+    AggregationResult,
+    AggregationSpec,
+    FilterOperator,
+    FilterSpec,
+    StructuredQueryInput,
+    StructuredQueryOutput,
+)
 from mosaic.schemas.reminder import (
     AddReminderInput,
     AddReminderOutput,
@@ -158,6 +167,14 @@ __all__ = [
     "ReminderResult",
     "UserResult",
     "EmploymentHistoryResult",
+    # Structured Query
+    "FilterOperator",
+    "FilterSpec",
+    "AggregationFunction",
+    "AggregationSpec",
+    "StructuredQueryInput",
+    "AggregationResult",
+    "StructuredQueryOutput",
     # Notification
     "TriggerNotificationInput",
     "TriggerNotificationOutput",

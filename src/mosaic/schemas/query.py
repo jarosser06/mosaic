@@ -1,6 +1,7 @@
 """Schemas for natural language query operations with discriminated unions."""
 
-from datetime import date, datetime
+import datetime as dt
+from datetime import datetime
 from decimal import Decimal
 from typing import Annotated, Literal
 
@@ -45,6 +46,11 @@ class WorkSessionResult(BaseSchema, TimezoneAwareDatetimeMixin):
     )
 
     id: int = Field(description="Work session ID", examples=[1, 42])
+
+    date: dt.date = Field(
+        description="Work session date",
+        examples=["2026-01-15"],
+    )
 
     start_time: datetime = Field(
         description="Start time",
@@ -378,9 +384,9 @@ class ReminderResult(BaseSchema, TimezoneAwareDatetimeMixin):
         description="ID of attached entity",
     )
 
-    completed_at: datetime | None = Field(
-        default=None,
-        description="Completion timestamp",
+    is_completed: bool = Field(
+        default=False,
+        description="Whether reminder is completed",
     )
 
     snoozed_until: datetime | None = Field(
@@ -416,7 +422,8 @@ class UserResult(BaseSchema, TimezoneAwareDatetimeMixin):
 
     full_name: str = Field(description="Full name", examples=["John Doe"])
 
-    email: str = Field(
+    email: str | None = Field(
+        default=None,
         description="Email address",
         examples=["john.doe@example.com"],
     )
@@ -456,12 +463,12 @@ class EmploymentHistoryResult(BaseSchema):
 
     employer_id: int = Field(description="Employer ID", examples=[1, 5])
 
-    start_date: date = Field(
+    start_date: dt.date = Field(
         description="Start date",
         examples=["2025-01-15"],
     )
 
-    end_date: date | None = Field(
+    end_date: dt.date | None = Field(
         default=None,
         description="End date (null if current)",
     )

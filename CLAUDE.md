@@ -86,6 +86,22 @@ DATABASE_URL=postgresql+asyncpg://mosaic:changeme@localhost:5433/mosaic
 
 **Port**: Changed to 5433 to avoid conflicts with local PostgreSQL installations.
 
+#### PostgreSQL-Specific Features
+
+**CRITICAL:** Mosaic uses PostgreSQL-specific SQL features:
+
+**func.string_agg():**
+- **Location**: `src/mosaic/services/work_session_service.py` line 179
+- **Purpose**: Aggregates work session summaries in timecard generation
+- **Syntax**: `string_agg(WorkSession.summary, "\n" ORDER BY WorkSession.start_time)`
+
+**Array Overlap Operator (&&):**
+- **Location**: `src/mosaic/tools/reminder_tools.py` line 99
+- **Purpose**: Filters reminders by tags using array overlap
+- **Syntax**: `Reminder.tags.op("&&")(cast(input.tags, StringArray))`
+
+**Status**: PostgreSQL 16 required. Project does not support other databases.
+
 ### 4. Dependency Management with uv/uvx
 
 This project uses [uv](https://github.com/astral-sh/uv) for fast dependency management:

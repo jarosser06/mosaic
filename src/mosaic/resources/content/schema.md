@@ -6,6 +6,8 @@ Complete reference for all 11 entities, relationships, enums, and indexes in the
 
 Mosaic uses PostgreSQL 16 with SQLAlchemy 2.0 async ORM. All models inherit from `Base` and use `TimestampMixin` for automatic `created_at`/`updated_at` tracking.
 
+**Field Naming Convention:** When querying via the API/MCP tools, use schema field names (e.g., `on_behalf_of`), not internal database field names (e.g., `on_behalf_of_id`). Where these differ, both are documented below.
+
 ## Entities
 
 ### 1. User
@@ -84,7 +86,9 @@ Work initiatives done on behalf of an employer for a client.
 **Fields:**
 - `id` (Integer, PK)
 - `name` (String 255, NOT NULL, indexed)
-- `on_behalf_of_id` (Integer, FK → employers.id, ON DELETE RESTRICT)
+- `on_behalf_of` (Integer, FK → employers.id, ON DELETE RESTRICT)
+  - *Database field: `on_behalf_of_id`*
+  - *API/Query field: `on_behalf_of`*
 - `client_id` (Integer, FK → clients.id, ON DELETE RESTRICT, NOT NULL)
 - `description` (String 2000)
 - `status` (Enum: ProjectStatus, default: active) - active, paused, or completed

@@ -33,6 +33,7 @@ class EntityType(str, Enum):
     EMPLOYER = "employer"
     WORK_SESSION = "work_session"
     MEETING = "meeting"
+    NOTE = "note"
     REMINDER = "reminder"
 
 

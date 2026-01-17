@@ -7,7 +7,7 @@ from sqlalchemy import String, Text, TypeDecorator
 from sqlalchemy.dialects import postgresql
 
 
-class StringArray(TypeDecorator):
+class StringArray(TypeDecorator[Any]):
     """
     Cross-database compatible string array type.
 
@@ -38,6 +38,7 @@ class StringArray(TypeDecorator):
         if value is None:
             return None
         if dialect.name == "postgresql":
-            return value
+            return value  # type: ignore[no-any-return]
         else:
-            return json.loads(value) if isinstance(value, str) else value
+            result = json.loads(value) if isinstance(value, str) else value
+            return result  # type: ignore[no-any-return]

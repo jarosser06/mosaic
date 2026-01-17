@@ -439,3 +439,159 @@ class TestRecurrenceCalculation:
         assert next_reminder.reminder_time.year == 2025
         assert next_reminder.reminder_time.month == 1
         assert next_reminder.reminder_time.day == 15
+
+
+class TestNotificationSpamPrevention:
+    """Test notification spam prevention with cooldown and auto-complete."""
+
+    @pytest.mark.asyncio
+    async def test_mark_notified_updates_timestamp(self, session: AsyncSession):
+        """Test mark_notified sets last_notified_at timestamp."""
+        service = ReminderService(session)
+        reminder_time = datetime.now(timezone.utc) - timedelta(hours=1)
+
+        reminder = await service.create_reminder(reminder_time=reminder_time, message="Test")
+        await session.commit()
+
+        # Initially no notification timestamp
+        assert reminder.last_notified_at is None
+
+        # Mark as notified
+        notified_at = datetime.now(timezone.utc)
+        updated = await service.mark_notified(reminder.id, notified_at)
+        await session.commit()
+
+        assert updated.last_notified_at == notified_at
+
+    @pytest.mark.asyncio
+    async def test_mark_notified_defaults_to_now(self, session: AsyncSession):
+        """Test mark_notified defaults to current time when not specified."""
+        service = ReminderService(session)
+        reminder_time = datetime.now(timezone.utc) - timedelta(hours=1)
+
+        reminder = await service.create_reminder(reminder_time=reminder_time, message="Test")
+        await session.commit()
+
+        before = datetime.now(timezone.utc)
+        updated = await service.mark_notified(reminder.id)
+        after = datetime.now(timezone.utc)
+        await session.commit()
+
+        assert updated.last_notified_at is not None
+        assert before <= updated.last_notified_at <= after
+
+    @pytest.mark.asyncio
+    async def test_mark_notified_auto_completes_non_recurring(self, session: AsyncSession):
+        """Test mark_notified auto-completes non-recurring reminders by default."""
+        service = ReminderService(session)
+        reminder_time = datetime.now(timezone.utc) - timedelta(hours=1)
+
+        reminder = await service.create_reminder(reminder_time=reminder_time, message="One-time")
+        await session.commit()
+
+        updated = await service.mark_notified(reminder.id)
+        await session.commit()
+
+        # Should be auto-completed (non-recurring)
+        assert updated.is_completed is True
+        assert updated.last_notified_at is not None
+
+    @pytest.mark.asyncio
+    async def test_mark_notified_does_not_complete_recurring(self, session: AsyncSession):
+        """Test mark_notified does NOT auto-complete recurring reminders."""
+        service = ReminderService(session)
+        reminder_time = datetime.now(timezone.utc) - timedelta(hours=1)
+
+        reminder = await service.create_reminder(
+            reminder_time=reminder_time,
+            message="Daily standup",
+            recurrence_config={"frequency": "daily"},
+        )
+        await session.commit()
+
+        updated = await service.mark_notified(reminder.id)
+        await session.commit()
+
+        # Should NOT be completed (recurring reminder)
+        assert updated.is_completed is False
+        assert updated.last_notified_at is not None
+
+    @pytest.mark.asyncio
+    async def test_mark_notified_not_found_raises_error(self, session: AsyncSession):
+        """Test mark_notified raises error for non-existent reminder."""
+        service = ReminderService(session)
+
+        with pytest.raises(ValueError, match="Reminder with ID 999 not found"):
+            await service.mark_notified(999)
+
+    @pytest.mark.asyncio
+    async def test_check_due_reminders_excludes_recently_notified(self, session: AsyncSession):
+        """Test check_due_reminders excludes reminders notified within cooldown period."""
+        service = ReminderService(session)
+        reminder_time = datetime.now(timezone.utc) - timedelta(hours=2)
+
+        # Create recurring reminder (won't auto-complete)
+        reminder = await service.create_reminder(
+            reminder_time=reminder_time,
+            message="Recently notified",
+            recurrence_config={"frequency": "daily"},
+        )
+        await session.commit()
+
+        # Mark as notified 30 minutes ago
+        notified_at = datetime.now(timezone.utc) - timedelta(minutes=30)
+        await service.mark_notified(reminder.id, notified_at)
+        await session.commit()
+
+        # Check due reminders (should exclude this one - within 60min cooldown)
+        due_reminders = await service.check_due_reminders()
+
+        assert len(due_reminders) == 0
+
+    @pytest.mark.asyncio
+    async def test_check_due_reminders_includes_cooldown_expired(self, session: AsyncSession):
+        """Test check_due_reminders includes reminders notified outside cooldown period."""
+        service = ReminderService(session)
+        reminder_time = datetime.now(timezone.utc) - timedelta(hours=2)
+
+        # Create recurring reminder (won't auto-complete)
+        reminder = await service.create_reminder(
+            reminder_time=reminder_time,
+            message="Cooldown expired",
+            recurrence_config={"frequency": "daily"},
+        )
+        await session.commit()
+
+        # Mark as notified 90 minutes ago (outside 60min cooldown)
+        notified_at = datetime.now(timezone.utc) - timedelta(minutes=90)
+        await service.mark_notified(reminder.id, notified_at)
+        await session.commit()
+
+        # Check due reminders (should include this one - cooldown expired)
+        due_reminders = await service.check_due_reminders()
+
+        assert len(due_reminders) == 1
+        assert due_reminders[0].message == "Cooldown expired"
+
+    @pytest.mark.asyncio
+    async def test_check_due_reminders_includes_never_notified(self, session: AsyncSession):
+        """Test check_due_reminders includes reminders that have never been notified."""
+        service = ReminderService(session)
+        reminder_time = datetime.now(timezone.utc) - timedelta(hours=1)
+
+        # Create recurring reminder
+        reminder = await service.create_reminder(
+            reminder_time=reminder_time,
+            message="Never notified",
+            recurrence_config={"frequency": "daily"},
+        )
+        await session.commit()
+
+        # Don't mark as notified
+        assert reminder.last_notified_at is None
+
+        # Should be included (never notified before)
+        due_reminders = await service.check_due_reminders()
+
+        assert len(due_reminders) == 1
+        assert due_reminders[0].message == "Never notified"

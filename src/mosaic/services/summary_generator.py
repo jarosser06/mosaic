@@ -1,6 +1,7 @@
 """Summary generator service for natural language query summaries."""
 
 from collections import defaultdict
+from typing import cast
 
 from ..models.base import PrivacyLevel
 from ..schemas.query import QueryResultEntity, WorkSessionResult
@@ -61,7 +62,9 @@ class SummaryGenerator:
 
         # Work sessions summary (with total hours)
         if grouped["work_sessions"]:
-            ws_summary = self._summarize_work_sessions(grouped["work_sessions"])
+            ws_summary = self._summarize_work_sessions(
+                cast(list[WorkSessionResult], grouped["work_sessions"])
+            )
             summary_parts.append(ws_summary)
 
         # Meetings summary

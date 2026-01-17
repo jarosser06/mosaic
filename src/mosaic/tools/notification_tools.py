@@ -1,11 +1,12 @@
 """MCP tools for triggering notifications."""
 
 import logging
+from typing import Any
 
 from mcp.server.fastmcp import Context
 
 from ..schemas.notification import TriggerNotificationInput, TriggerNotificationOutput
-from ..server import mcp
+from ..server import AppContext, mcp
 from ..services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 @mcp.tool()
 async def trigger_notification(
-    input: TriggerNotificationInput, ctx: Context
+    input: TriggerNotificationInput, ctx: Context[Any, AppContext, Any]
 ) -> TriggerNotificationOutput:
     """
     Trigger a macOS notification (internal tool).

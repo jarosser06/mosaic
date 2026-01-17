@@ -1,12 +1,16 @@
 """Query service for flexible multi-entity queries with filtering."""
 
 from datetime import date, datetime
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from ..models.base import EntityType, PrivacyLevel
+
+if TYPE_CHECKING:
+    from ..schemas.query_structured import AggregationSpec, FilterSpec
 from ..models.client import Client
 from ..models.employer import Employer
 from ..models.meeting import Meeting
@@ -41,6 +45,9 @@ class QueryService:
         person_id: Optional[int] = None,
         client_id: Optional[int] = None,
         employer_id: Optional[int] = None,
+        include_completed: bool = False,
+        project_status: Optional[str] = None,
+        client_status: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> dict[str, list[Any]]:
         """
@@ -61,6 +68,9 @@ class QueryService:
             person_id: Filter to specific person
             client_id: Filter to specific client
             employer_id: Filter to specific employer
+            include_completed: Include completed reminders (default: False)
+            project_status: Filter projects by status (active, paused, completed)
+            client_status: Filter clients by status (active, past)
             limit: Maximum results per entity type
 
         Returns:
@@ -79,6 +89,7 @@ class QueryService:
             entity_types = [
                 EntityType.WORK_SESSION,
                 EntityType.MEETING,
+                EntityType.NOTE,
                 EntityType.PROJECT,
                 EntityType.PERSON,
                 EntityType.CLIENT,
@@ -107,6 +118,7 @@ class QueryService:
                 include_private=include_private,
                 search_text=search_text,
                 project_id=project_id,
+                employer_id=employer_id,
                 limit=limit,
             )
 
@@ -123,12 +135,22 @@ class QueryService:
                 limit=limit,
             )
 
+        # Query notes
+        if EntityType.NOTE in entity_types:
+            results["notes"] = await self._query_notes(
+                privacy_levels=privacy_levels,
+                include_private=include_private,
+                search_text=search_text,
+                limit=limit,
+            )
+
         # Query projects
         if EntityType.PROJECT in entity_types:
             results["projects"] = await self._query_projects(
                 search_text=search_text,
                 client_id=client_id,
                 employer_id=employer_id,
+                project_status=project_status,
                 limit=limit,
             )
 
@@ -143,6 +165,7 @@ class QueryService:
         if EntityType.CLIENT in entity_types:
             results["clients"] = await self._query_clients(
                 search_text=search_text,
+                client_status=client_status,
                 limit=limit,
             )
 
@@ -159,6 +182,7 @@ class QueryService:
                 start_date=start_date,
                 end_date=end_date,
                 search_text=search_text,
+                include_completed=include_completed,
                 limit=limit,
             )
 
@@ -172,6 +196,7 @@ class QueryService:
         include_private: bool = True,
         search_text: Optional[str] = None,
         project_id: Optional[int] = None,
+        employer_id: Optional[int] = None,
         limit: Optional[int] = None,
     ) -> list[WorkSession]:
         """Query work sessions with filters."""
@@ -184,7 +209,7 @@ class QueryService:
             query = query.where(WorkSession.date <= end_date)
 
         # Privacy filters
-        if privacy_levels:
+        if privacy_levels is not None:
             query = query.where(WorkSession.privacy_level.in_(privacy_levels))
         elif not include_private:
             query = query.where(WorkSession.privacy_level != PrivacyLevel.PRIVATE)
@@ -192,6 +217,10 @@ class QueryService:
         # Project filter
         if project_id:
             query = query.where(WorkSession.project_id == project_id)
+
+        # Employer filter (requires join to project)
+        if employer_id:
+            query = query.join(Project).where(Project.on_behalf_of_id == employer_id)
 
         # Text search
         if search_text:
@@ -216,7 +245,11 @@ class QueryService:
         limit: Optional[int] = None,
     ) -> list[Meeting]:
         """Query meetings with filters."""
-        query = select(Meeting).order_by(Meeting.start_time.desc())
+        query = (
+            select(Meeting)
+            .options(selectinload(Meeting.attendees))
+            .order_by(Meeting.start_time.desc())
+        )
 
         # Date filters (convert date to datetime)
         if start_date:
@@ -227,7 +260,7 @@ class QueryService:
             query = query.where(Meeting.start_time <= end_dt)
 
         # Privacy filters
-        if privacy_levels:
+        if privacy_levels is not None:
             query = query.where(Meeting.privacy_level.in_(privacy_levels))
         elif not include_private:
             query = query.where(Meeting.privacy_level != PrivacyLevel.PRIVATE)
@@ -242,9 +275,41 @@ class QueryService:
 
             query = query.join(MeetingAttendee).where(MeetingAttendee.person_id == person_id)
 
+        # Text search (title and summary)
+        if search_text:
+            query = query.where(
+                or_(
+                    Meeting.title.ilike(f"%{search_text}%"),
+                    Meeting.summary.ilike(f"%{search_text}%"),
+                )
+            )
+
+        # Limit
+        if limit:
+            query = query.limit(limit)
+
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+
+    async def _query_notes(
+        self,
+        privacy_levels: Optional[list[PrivacyLevel]] = None,
+        include_private: bool = True,
+        search_text: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> list[Note]:
+        """Query notes with filters."""
+        query = select(Note).order_by(Note.created_at.desc())
+
+        # Privacy filters
+        if privacy_levels is not None:
+            query = query.where(Note.privacy_level.in_(privacy_levels))
+        elif not include_private:
+            query = query.where(Note.privacy_level != PrivacyLevel.PRIVATE)
+
         # Text search
         if search_text:
-            query = query.where(Meeting.summary.ilike(f"%{search_text}%"))
+            query = query.where(Note.text.ilike(f"%{search_text}%"))
 
         # Limit
         if limit:
@@ -258,10 +323,15 @@ class QueryService:
         search_text: Optional[str] = None,
         client_id: Optional[int] = None,
         employer_id: Optional[int] = None,
+        project_status: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> list[Project]:
         """Query projects with filters."""
         query = select(Project).order_by(Project.name)
+
+        # Status filter
+        if project_status:
+            query = query.where(Project.status == project_status)
 
         # Client filter
         if client_id:
@@ -314,10 +384,15 @@ class QueryService:
     async def _query_clients(
         self,
         search_text: Optional[str] = None,
+        client_status: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> list[Client]:
         """Query clients with filters."""
         query = select(Client).order_by(Client.name)
+
+        # Status filter
+        if client_status:
+            query = query.where(Client.status == client_status)
 
         # Text search (name and notes)
         if search_text:
@@ -364,6 +439,7 @@ class QueryService:
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
         search_text: Optional[str] = None,
+        include_completed: bool = False,
         limit: Optional[int] = None,
     ) -> list[Reminder]:
         """Query reminders with filters."""
@@ -376,6 +452,10 @@ class QueryService:
         if end_date:
             end_dt = datetime.combine(end_date, datetime.max.time())
             query = query.where(Reminder.reminder_time <= end_dt)
+
+        # Completed filter
+        if not include_completed:
+            query = query.where(Reminder.is_completed == False)  # noqa: E712
 
         # Text search
         if search_text:
@@ -461,3 +541,117 @@ class QueryService:
 
         result = await self.session.execute(query)
         return list(result.scalars().all())
+
+    async def structured_query(
+        self,
+        entity_type: EntityType,
+        filters: list["FilterSpec"],
+        aggregation: "AggregationSpec | None" = None,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> dict[str, Any]:
+        """
+        Execute structured query using query builder.
+
+        Args:
+            entity_type: Type of entity to query
+            filters: List of filter specifications
+            aggregation: Optional aggregation specification
+            limit: Maximum results
+            offset: Result offset for pagination
+
+        Returns:
+            dict: Query results with entities or aggregations
+                Format (entities):
+                    {
+                        "entity_type": "work_session",
+                        "results": [<entities>],
+                        "total_count": 42
+                    }
+                Format (aggregation):
+                    {
+                        "entity_type": "work_session",
+                        "aggregation": {
+                            "function": "sum",
+                            "field": "duration_hours",
+                            "result": 42.5
+                        },
+                        "groups": [...]  # If GROUP BY used
+                    }
+
+        Raises:
+            ValueError: If query specification is invalid
+        """
+        # Import here to avoid circular dependency
+        from .query_builder import QueryBuilder
+        from .result_converter import ResultConverter
+
+        builder = QueryBuilder(self.session)
+
+        # Build query
+        query = builder.build_query(
+            entity_type=entity_type,
+            filters=filters,
+            aggregation=aggregation,
+            limit=limit,
+            offset=offset,
+        )
+
+        # Execute query
+        result = await self.session.execute(query)
+
+        if aggregation:
+            # Handle aggregation results
+            func_value = (
+                aggregation.function.value
+                if hasattr(aggregation.function, "value")
+                else str(aggregation.function)
+            )
+            if aggregation.group_by:
+                # Grouped aggregation
+                rows = result.all()
+                return {
+                    "entity_type": (
+                        entity_type.value if hasattr(entity_type, "value") else str(entity_type)
+                    ),
+                    "aggregation": {
+                        "function": func_value,
+                        "field": aggregation.field,
+                        "groups": [
+                            {
+                                "group_values": list(row[:-1]),
+                                "result": row[-1],
+                            }
+                            for row in rows
+                        ],
+                    },
+                    "total_groups": len(rows),
+                }
+            else:
+                # Global aggregation
+                agg_result = result.scalar_one()
+                return {
+                    "entity_type": (
+                        entity_type.value if hasattr(entity_type, "value") else str(entity_type)
+                    ),
+                    "aggregation": {
+                        "function": func_value,
+                        "field": aggregation.field,
+                        "result": agg_result,
+                    },
+                }
+        else:
+            # Handle entity results - convert to Pydantic schemas
+            entities = list(result.scalars().all())
+
+            # Convert SQLAlchemy models to Pydantic schemas for JSON serialization
+            converter = ResultConverter()
+            converted_entities = converter.convert_entity_list(entity_type, entities)
+
+            return {
+                "entity_type": (
+                    entity_type.value if hasattr(entity_type, "value") else str(entity_type)
+                ),
+                "results": converted_entities,
+                "total_count": len(converted_entities),
+            }

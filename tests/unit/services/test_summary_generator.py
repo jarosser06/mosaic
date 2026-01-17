@@ -452,7 +452,7 @@ class TestSummaryGenerator:
             message="Call client",
             entity_type_attached=None,
             entity_id_attached=None,
-            completed_at=None,
+            is_completed=False,
             snoozed_until=None,
             tags=[],
             created_at=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
@@ -470,7 +470,7 @@ class TestSummaryGenerator:
             message="Reminder 1",
             entity_type_attached=None,
             entity_id_attached=None,
-            completed_at=None,
+            is_completed=False,
             snoozed_until=None,
             tags=[],
             created_at=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
@@ -483,7 +483,7 @@ class TestSummaryGenerator:
             message="Reminder 2",
             entity_type_attached=EntityType.PROJECT,
             entity_id_attached=1,
-            completed_at=None,
+            is_completed=False,
             snoozed_until=None,
             tags=[],
             created_at=datetime(2024, 1, 16, 9, 0, tzinfo=timezone.utc),
@@ -533,7 +533,23 @@ class TestSummaryGenerator:
         summary = generator.generate([user1, user2], include_private=True)
         assert summary == "Found 2 users."
 
-    def test_generate_employment_histories(self, generator: SummaryGenerator):
+    def test_generate_single_employment_history(self, generator: SummaryGenerator):
+        """Test generating summary with one employment history."""
+        from datetime import date
+
+        eh = EmploymentHistoryResult(
+            id=1,
+            person_id=1,
+            employer_id=1,
+            start_date=date(2024, 1, 1),
+            end_date=None,
+            title="Software Engineer",
+        )
+
+        summary = generator.generate([eh], include_private=True)
+        assert summary == "Found 1 employment history."
+
+    def test_generate_multiple_employment_histories(self, generator: SummaryGenerator):
         """Test generating summary with employment histories."""
         from datetime import date
 

@@ -42,11 +42,14 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         async with get_session() as session:
             # perform database operations
             pass
+
+    Note:
+        Does not auto-begin transactions. For read-only queries,
+        no transaction is needed. For writes, wrap in session.begin().
     """
     session = async_session_factory()
     try:
-        async with session.begin():
-            yield session
+        yield session
     except Exception:
         await session.rollback()
         raise

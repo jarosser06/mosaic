@@ -81,9 +81,10 @@ class SchedulerService:
         Job that checks for due reminders and sends notifications.
 
         This job runs every minute. It:
-        1. Gets all due reminders (reminder_time <= now, not completed, not snoozed)
+        1. Gets all due reminders (applying cooldown filter to prevent spam)
         2. Sends a notification for each due reminder
-        3. Does NOT auto-complete reminders (user controls completion)
+        3. Marks reminder as notified (updates last_notified_at)
+        4. Auto-completes non-recurring reminders if configured
 
         Raises:
             None (logs errors instead of raising)
@@ -92,7 +93,7 @@ class SchedulerService:
             async with get_session() as session:
                 reminder_service = ReminderService(session)
 
-                # Get all due reminders
+                # Get all due reminders (with cooldown filter applied)
                 due_reminders = await reminder_service.check_due_reminders()
 
                 if not due_reminders:
@@ -115,9 +116,17 @@ class SchedulerService:
                     )
 
                     if success:
-                        logger.info(f"Notification sent successfully for reminder {reminder.id}")
+                        # Mark as notified to prevent spam
+                        await reminder_service.mark_notified(reminder.id)
+                        logger.info(
+                            f"Notification sent successfully for reminder {reminder.id}, "
+                            f"marked as notified"
+                        )
                     else:
                         logger.error(f"Failed to send notification for reminder {reminder.id}")
+
+                # Commit all changes
+                await session.commit()
 
         except Exception as e:
             logger.error(f"Error in _check_and_notify_reminders: {e}", exc_info=True)

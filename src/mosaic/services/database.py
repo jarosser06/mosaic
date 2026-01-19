@@ -1,10 +1,8 @@
 """Async database session management."""
 
-import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import AsyncGenerator
 from urllib.parse import urlparse
 
@@ -12,8 +10,8 @@ import asyncpg
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from alembic import command
-from alembic.config import Config
+from .. import models  # noqa: F401 - imported for side effects (model registration)
+from ..models.base import Base
 
 logger = logging.getLogger(__name__)
 
@@ -143,34 +141,44 @@ async def _ensure_database_exists() -> None:
         raise
 
 
-def _run_migrations() -> None:
-    """Run Alembic migrations synchronously."""
-    # Find the project root (where alembic.ini lives)
-    current_file = Path(__file__).resolve()
-    project_root = current_file.parent.parent.parent.parent  # src/mosaic/services -> project root
+async def _create_tables() -> None:
+    """Create all database tables using SQLAlchemy metadata.
 
-    alembic_ini = project_root / "alembic.ini"
-    if not alembic_ini.exists():
-        logger.warning(f"alembic.ini not found at {alembic_ini}, skipping auto-migration")
-        return
+    This uses Base.metadata.create_all() which is idempotent:
+    - Checks which tables already exist
+    - Only creates missing tables
+    - Safe to run on every startup
 
-    alembic_cfg = Config(str(alembic_ini))
-    # Set the script location relative to project root
-    alembic_cfg.set_main_option("script_location", str(project_root / "alembic"))
+    Raises:
+        Exception: If table creation fails
+    """
+    try:
+        logger.info("Creating database tables...")
 
-    logger.info("Running database migrations...")
-    command.upgrade(alembic_cfg, "head")
-    logger.info("Database migrations complete")
+        # Use engine.begin() to get async connection with transaction
+        async with engine.begin() as conn:
+            # Run synchronous create_all in the async connection
+            # This imports all models via Base.metadata and creates tables
+            await conn.run_sync(Base.metadata.create_all)
+
+        logger.info("Database tables created successfully")
+
+    except Exception as e:
+        logger.error(f"Failed to create database tables: {e}")
+        raise
 
 
 async def init_db() -> None:
-    """Initialize database: create if needed and run migrations."""
+    """Initialize database: create database if needed and create tables.
+
+    This is called on server startup to ensure the database and all
+    tables exist before processing any requests.
+    """
     # First ensure database exists
     await _ensure_database_exists()
 
-    # Run Alembic migrations in a thread pool (Alembic is synchronous)
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, _run_migrations)
+    # Create all tables (idempotent - safe to run multiple times)
+    await _create_tables()
 
 
 async def close_db() -> None:

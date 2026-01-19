@@ -1,10 +1,12 @@
 """Unit tests for database session management service."""
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.mosaic.services.database import get_session
+from src.mosaic.services.database import get_session, init_db
 
 
 class TestDatabaseSessionManagement:
@@ -155,3 +157,118 @@ class TestDatabaseSessionManagement:
             await self.asyncTearDown()
 
         # Both should succeed - pool pre-ping keeps connections fresh
+
+
+class TestTableCreation:
+    """Test automatic table creation with SQLAlchemy metadata.create_all()."""
+
+    @pytest.mark.asyncio
+    async def test_create_tables_creates_all_expected_tables(self, test_engine):
+        """Test _create_tables() creates all 11 expected database tables."""
+        from src.mosaic.models.base import Base
+
+        # First, drop all tables to ensure clean state
+        async with test_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+
+        # Now create tables using the same pattern as _create_tables()
+        async with test_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        # Verify all expected tables exist
+        expected_tables = {
+            "users",
+            "employers",
+            "clients",
+            "people",
+            "employment_history",
+            "projects",
+            "work_sessions",
+            "meetings",
+            "meeting_attendees",
+            "reminders",
+            "notes",
+        }
+
+        async with test_engine.connect() as conn:
+            # Get list of actual tables using inspector
+            def get_table_names(sync_conn):
+                inspector = inspect(sync_conn)
+                return set(inspector.get_table_names())
+
+            actual_tables = await conn.run_sync(get_table_names)
+
+        # Verify all expected tables were created
+        assert expected_tables.issubset(
+            actual_tables
+        ), f"Missing tables: {expected_tables - actual_tables}"
+
+    @pytest.mark.asyncio
+    async def test_create_tables_idempotent(self, test_engine):
+        """Test create_all() can be called multiple times without errors."""
+        from src.mosaic.models.base import Base
+
+        # Call create_all() twice
+        async with test_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        async with test_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)  # Should not raise exception
+
+        # Verify tables still exist after second call
+        async with test_engine.connect() as conn:
+
+            def get_table_names(sync_conn):
+                inspector = inspect(sync_conn)
+                return set(inspector.get_table_names())
+
+            actual_tables = await conn.run_sync(get_table_names)
+
+        # Should have at least our 11 tables
+        expected_tables = {
+            "users",
+            "employers",
+            "clients",
+            "people",
+            "employment_history",
+            "projects",
+            "work_sessions",
+            "meetings",
+            "meeting_attendees",
+            "reminders",
+            "notes",
+        }
+        assert expected_tables.issubset(actual_tables)
+
+    @pytest.mark.asyncio
+    async def test_init_db_calls_create_tables(self):
+        """Test init_db() calls _create_tables() function."""
+        # Mock both _ensure_database_exists and _create_tables
+        with (
+            patch("src.mosaic.services.database._ensure_database_exists") as mock_ensure_db,
+            patch("src.mosaic.services.database._create_tables") as mock_create_tables,
+        ):
+            mock_ensure_db.return_value = None
+            mock_create_tables.return_value = None
+
+            # Call init_db()
+            await init_db()
+
+            # Verify both functions were called
+            mock_ensure_db.assert_called_once()
+            mock_create_tables.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_create_tables_error_handling(self):
+        """Test _create_tables() handles connection errors properly."""
+        from src.mosaic.services.database import _create_tables
+
+        # Mock the engine to raise an exception
+        with patch("src.mosaic.services.database.engine") as mock_engine:
+            mock_conn = AsyncMock()
+            mock_conn.run_sync.side_effect = Exception("Connection failed")
+            mock_engine.begin.return_value.__aenter__.return_value = mock_conn
+
+            # Verify exception is raised
+            with pytest.raises(Exception, match="Connection failed"):
+                await _create_tables()

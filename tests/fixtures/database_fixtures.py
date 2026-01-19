@@ -11,9 +11,8 @@ from sqlalchemy.ext.asyncio import (
 from src.mosaic.models.base import Base
 
 # Test database URL - use separate test database on PostgreSQL
-TEST_DATABASE_URL = (
-    "postgresql+asyncpg://mosaic:changeme_supersecret_password@localhost:5433/mosaic_test"
-)
+# Password must match docker-compose.yml (default: changeme)
+TEST_DATABASE_URL = "postgresql+asyncpg://mosaic:changeme@localhost:5433/mosaic_test"
 
 
 @pytest.fixture(scope="function")

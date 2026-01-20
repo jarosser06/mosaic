@@ -1,6 +1,7 @@
 """QueryBuilder service for converting structured queries to SQLAlchemy."""
 
-from datetime import date, datetime, timedelta
+import re
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import Select, func, select
@@ -540,38 +541,112 @@ class QueryBuilder:
         else:
             raise ValueError(f"Unsupported aggregation function: {function}")
 
+    def _parse_iso_datetime(self, value: str) -> datetime | str:
+        """
+        Parse ISO 8601 datetime string to timezone-aware datetime.
+
+        Handles:
+            - ISO datetime with 'Z' suffix (UTC): "2026-01-20T00:00:00Z"
+            - ISO datetime with offset: "2026-01-20T00:00:00+05:30"
+            - ISO datetime without timezone: "2026-01-20T00:00:00" (adds UTC)
+
+        Args:
+            value: Potential ISO datetime string
+
+        Returns:
+            datetime | str: Parsed datetime (timezone-aware) or original string if parsing fails
+        """
+        try:
+            # Normalize 'Z' suffix to '+00:00' for fromisoformat()
+            normalized = value.replace("Z", "+00:00")
+            dt = datetime.fromisoformat(normalized)
+
+            # Ensure timezone-aware (add UTC if naive)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+
+            return dt
+        except ValueError:
+            # Not a valid ISO datetime, return as-is
+            return value
+
     def _resolve_filter_value(self, value: Any) -> Any:
         """
-        Resolve filter value (handle time shortcuts).
+        Resolve filter value (handle time shortcuts and ISO date/datetime strings).
 
         Time shortcuts:
             - "today" -> date.today()
-            - "this_week" -> start of current week
+            - "tomorrow" -> date.today() + timedelta(days=1)
+            - "yesterday" -> date.today() - timedelta(days=1)
+            - "this_week" -> start of current week (Monday)
+            - "next_week" -> start of next week (Monday)
+            - "last_week" -> start of last week (Monday)
             - "this_month" -> start of current month
+            - "next_month" -> start of next month
+            - "last_month" -> start of last month
             - "this_year" -> start of current year
+            - "now" -> datetime.now()
+
+        ISO formats:
+            - ISO datetime strings (with 'T'): "2026-01-20T00:00:00Z"
+            - ISO date strings: "2026-01-20"
 
         Args:
             value: Raw filter value
 
         Returns:
-            Any: Resolved value
+            Any: Resolved value (date | datetime | original)
         """
         if not isinstance(value, str):
             return value
 
         # Handle time shortcuts
+        today = date.today()
+
         if value == "today":
-            return date.today()
+            return today
+        elif value == "tomorrow":
+            return today + timedelta(days=1)
+        elif value == "yesterday":
+            return today - timedelta(days=1)
         elif value == "this_week":
-            today = date.today()
             # Start of week (Monday)
             return today - timedelta(days=today.weekday())
+        elif value == "next_week":
+            # Start of next week (Monday)
+            return today + timedelta(days=(7 - today.weekday()))
+        elif value == "last_week":
+            # Start of last week (Monday)
+            return today - timedelta(days=(today.weekday() + 7))
         elif value == "this_month":
-            return date.today().replace(day=1)
+            return today.replace(day=1)
+        elif value == "next_month":
+            # First day of next month
+            if today.month == 12:
+                return date(today.year + 1, 1, 1)
+            else:
+                return date(today.year, today.month + 1, 1)
+        elif value == "last_month":
+            # First day of last month
+            if today.month == 1:
+                return date(today.year - 1, 12, 1)
+            else:
+                return date(today.year, today.month - 1, 1)
         elif value == "this_year":
-            return date.today().replace(month=1, day=1)
+            return today.replace(month=1, day=1)
         elif value == "now":
-            return datetime.now()
+            return datetime.now(timezone.utc)
+
+        # Try ISO datetime parsing (strings containing 'T')
+        if "T" in value:
+            return self._parse_iso_datetime(value)
+
+        # Try ISO date parsing (YYYY-MM-DD pattern)
+        if re.match(r"^\d{4}-\d{2}-\d{2}$", value):
+            try:
+                return date.fromisoformat(value)
+            except ValueError:
+                pass  # Return original string
 
         return value
 

@@ -6,7 +6,7 @@ ensuring proper filtering logic and correct results returned.
 Target: 60+ integration tests covering all query scenarios.
 """
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -1853,3 +1853,247 @@ class TestNotesQueries:
         )
 
         assert len(notes) == 0
+
+
+# ============================================================================
+# Date/Time String Parsing Tests
+# ============================================================================
+
+
+class TestDateTimeStringParsing:
+    """Test QueryBuilder date/time string parsing in real queries."""
+
+    @pytest.mark.asyncio
+    async def test_query_with_tomorrow_filter(
+        self,
+        test_session: AsyncSession,
+        project: Project,
+    ):
+        """Test querying with 'tomorrow' special value."""
+        tomorrow = date.today() + timedelta(days=1)
+
+        # Create work session for tomorrow
+        ws = WorkSession(
+            project_id=project.id,
+            date=tomorrow,
+            start_time=datetime.combine(tomorrow, datetime.min.time()).replace(tzinfo=timezone.utc),
+            end_time=datetime.combine(tomorrow, datetime.min.time()).replace(tzinfo=timezone.utc)
+            + timedelta(hours=3),
+            duration_hours=Decimal("3.0"),
+            summary="Tomorrow's work",
+            privacy_level=PrivacyLevel.PUBLIC,
+        )
+        test_session.add(ws)
+        await test_session.commit()
+
+        # Build query manually using QueryBuilder
+        from src.mosaic.services.query_builder import QueryBuilder
+
+        builder = QueryBuilder(session=test_session)
+        query = builder.build_work_sessions_query(start_date=tomorrow)
+
+        # Execute
+        result = await test_session.execute(query)
+        sessions = list(result.scalars().all())
+
+        assert len(sessions) == 1
+        assert sessions[0].date == tomorrow
+
+    @pytest.mark.asyncio
+    async def test_query_with_iso_datetime_string(
+        self,
+        test_session: AsyncSession,
+        project: Project,
+    ):
+        """Test querying with ISO datetime string."""
+        # Create meeting with specific datetime
+        target_time = datetime(2026, 1, 20, 14, 30, 0, tzinfo=timezone.utc)
+        meeting = Meeting(
+            title="Test meeting",
+            start_time=target_time,
+            duration_minutes=60,
+            summary="ISO datetime test",
+            privacy_level=PrivacyLevel.PUBLIC,
+            project_id=project.id,
+        )
+        test_session.add(meeting)
+        await test_session.commit()
+
+        # Query using ISO datetime string via structured query
+        from src.mosaic.schemas.query_structured import (
+            FilterOperator,
+            FilterSpec,
+            StructuredQuery,
+        )
+        from src.mosaic.services.query_service import QueryService
+
+        service = QueryService(test_session)
+        query = StructuredQuery(
+            entity_types=[EntityType.MEETING],
+            filters=[
+                FilterSpec(
+                    field="start_time",
+                    operator=FilterOperator.GREATER_THAN_OR_EQUAL,
+                    value="2026-01-20T00:00:00Z",
+                ),
+            ],
+        )
+
+        results = await service.structured_query(query)
+        meetings = results["meetings"]
+
+        assert len(meetings) >= 1
+        assert any(m.title == "Test meeting" for m in meetings)
+
+    @pytest.mark.asyncio
+    async def test_query_with_iso_date_string(
+        self,
+        test_session: AsyncSession,
+        project: Project,
+    ):
+        """Test querying with ISO date string (YYYY-MM-DD)."""
+        target_date = date(2026, 1, 20)
+
+        # Create work session
+        ws = WorkSession(
+            project_id=project.id,
+            date=target_date,
+            start_time=datetime.combine(target_date, datetime.min.time()).replace(
+                tzinfo=timezone.utc
+            ),
+            end_time=datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
+            + timedelta(hours=3),
+            duration_hours=Decimal("3.0"),
+            summary="Date string test",
+            privacy_level=PrivacyLevel.PUBLIC,
+        )
+        test_session.add(ws)
+        await test_session.commit()
+
+        # Query using ISO date string via structured query
+        from src.mosaic.schemas.query_structured import (
+            FilterOperator,
+            FilterSpec,
+            StructuredQuery,
+        )
+        from src.mosaic.services.query_service import QueryService
+
+        service = QueryService(test_session)
+        query = StructuredQuery(
+            entity_types=[EntityType.WORK_SESSION],
+            filters=[
+                FilterSpec(
+                    field="date",
+                    operator=FilterOperator.EQUAL,
+                    value="2026-01-20",
+                ),
+            ],
+        )
+
+        results = await service.structured_query(query)
+        sessions = results["work_sessions"]
+
+        assert len(sessions) == 1
+        assert sessions[0].date == target_date
+
+    @pytest.mark.asyncio
+    async def test_no_postgresql_type_errors(
+        self,
+        test_session: AsyncSession,
+        project: Project,
+    ):
+        """Test that date/time strings don't cause PostgreSQL type errors."""
+        # Create meeting
+        meeting = Meeting(
+            title="Type test meeting",
+            start_time=datetime(2026, 1, 21, 10, 0, tzinfo=timezone.utc),
+            duration_minutes=60,
+            privacy_level=PrivacyLevel.PUBLIC,
+            project_id=project.id,
+        )
+        test_session.add(meeting)
+        await test_session.commit()
+
+        # These should NOT raise "operator does not exist" errors
+        from src.mosaic.schemas.query_structured import (
+            FilterOperator,
+            FilterSpec,
+            StructuredQuery,
+        )
+        from src.mosaic.services.query_service import QueryService
+
+        service = QueryService(test_session)
+
+        # Test with ISO datetime
+        query1 = StructuredQuery(
+            entity_types=[EntityType.MEETING],
+            filters=[
+                FilterSpec(
+                    field="start_time",
+                    operator=FilterOperator.LESS_THAN,
+                    value="2026-01-22T00:00:00Z",
+                ),
+            ],
+        )
+        results1 = await service.structured_query(query1)
+        assert "meetings" in results1
+
+        # Test with special value
+        query2 = StructuredQuery(
+            entity_types=[EntityType.MEETING],
+            filters=[
+                FilterSpec(
+                    field="start_time",
+                    operator=FilterOperator.GREATER_THAN,
+                    value="yesterday",
+                ),
+            ],
+        )
+        results2 = await service.structured_query(query2)
+        assert "meetings" in results2
+
+    @pytest.mark.asyncio
+    async def test_timezone_handling_in_results(
+        self,
+        test_session: AsyncSession,
+        project: Project,
+    ):
+        """Test that timezone-aware datetimes are handled correctly."""
+        # Create meeting with UTC time
+        utc_time = datetime(2026, 1, 20, 15, 0, 0, tzinfo=timezone.utc)
+        meeting = Meeting(
+            title="Timezone test",
+            start_time=utc_time,
+            duration_minutes=60,
+            privacy_level=PrivacyLevel.PUBLIC,
+            project_id=project.id,
+        )
+        test_session.add(meeting)
+        await test_session.commit()
+
+        # Query with timezone-aware ISO datetime
+        from src.mosaic.schemas.query_structured import (
+            FilterOperator,
+            FilterSpec,
+            StructuredQuery,
+        )
+        from src.mosaic.services.query_service import QueryService
+
+        service = QueryService(test_session)
+        query = StructuredQuery(
+            entity_types=[EntityType.MEETING],
+            filters=[
+                FilterSpec(
+                    field="start_time",
+                    operator=FilterOperator.EQUAL,
+                    value="2026-01-20T15:00:00Z",
+                ),
+            ],
+        )
+
+        results = await service.structured_query(query)
+        meetings = results["meetings"]
+
+        assert len(meetings) == 1
+        assert meetings[0].start_time.tzinfo is not None
+        assert meetings[0].start_time == utc_time

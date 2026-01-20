@@ -1,6 +1,8 @@
 """Repository layer for data access with SQLAlchemy 2.0 async support."""
 
+from .action_item_repository import ActionItemRepository
 from .base import BaseRepository
+from .bookmark_repository import BookmarkRepository
 from .client_repository import ClientRepository
 from .employer_repository import EmployerRepository
 from .meeting_repository import MeetingRepository
@@ -23,4 +25,6 @@ __all__ = [
     "MeetingRepository",
     "ReminderRepository",
     "NoteRepository",
+    "ActionItemRepository",
+    "BookmarkRepository",
 ]

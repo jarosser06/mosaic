@@ -1,6 +1,8 @@
 """Database models for Mosaic."""
 
+from .action_item import ActionItem
 from .base import (
+    ActionItemStatus,
     Base,
     ClientStatus,
     ClientType,
@@ -10,6 +12,7 @@ from .base import (
     TimestampMixin,
     WeekBoundary,
 )
+from .bookmark import Bookmark
 from .client import Client
 from .employer import Employer
 from .meeting import Meeting, MeetingAttendee
@@ -30,6 +33,7 @@ __all__ = [
     "ProjectStatus",
     "ClientStatus",
     "ClientType",
+    "ActionItemStatus",
     # Models
     "User",
     "Employer",
@@ -42,4 +46,6 @@ __all__ = [
     "MeetingAttendee",
     "Reminder",
     "Note",
+    "ActionItem",
+    "Bookmark",
 ]

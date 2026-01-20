@@ -1,5 +1,25 @@
 """Pydantic schemas for MCP tool input/output validation."""
 
+from mosaic.schemas.action_item import (
+    AddActionItemInput,
+    AddActionItemOutput,
+    DeleteActionItemInput,
+    DeleteActionItemOutput,
+    ListActionItemsInput,
+    ListActionItemsOutput,
+    UpdateActionItemInput,
+    UpdateActionItemOutput,
+)
+from mosaic.schemas.bookmark import (
+    AddBookmarkInput,
+    AddBookmarkOutput,
+    DeleteBookmarkInput,
+    DeleteBookmarkOutput,
+    ListBookmarksInput,
+    ListBookmarksOutput,
+    UpdateBookmarkInput,
+    UpdateBookmarkOutput,
+)
 from mosaic.schemas.client import (
     AddClientInput,
     AddClientOutput,
@@ -150,6 +170,24 @@ __all__ = [
     "CompleteReminderOutput",
     "SnoozeReminderInput",
     "SnoozeReminderOutput",
+    # Action Item
+    "AddActionItemInput",
+    "AddActionItemOutput",
+    "UpdateActionItemInput",
+    "UpdateActionItemOutput",
+    "ListActionItemsInput",
+    "ListActionItemsOutput",
+    "DeleteActionItemInput",
+    "DeleteActionItemOutput",
+    # Bookmark
+    "AddBookmarkInput",
+    "AddBookmarkOutput",
+    "UpdateBookmarkInput",
+    "UpdateBookmarkOutput",
+    "ListBookmarksInput",
+    "ListBookmarksOutput",
+    "DeleteBookmarkInput",
+    "DeleteBookmarkOutput",
     # User
     "UpdateUserProfileInput",
     "UpdateUserProfileOutput",

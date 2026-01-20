@@ -50,6 +50,12 @@ async def session(test_session: AsyncSession) -> AsyncSession:
     return test_session
 
 
+@pytest.fixture
+async def app_context_fixture(test_app_context):
+    """Alias for test_app_context to maintain compatibility with integration tests."""
+    return test_app_context
+
+
 # ============================================================================
 # Entity Fixtures (use test_session, not session)
 # ============================================================================

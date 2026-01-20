@@ -16,6 +16,15 @@ class PrivacyLevel(str, Enum):
     PRIVATE = "private"
 
 
+class ActionItemStatus(str, Enum):
+    """Status values for action items."""
+
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
 class WeekBoundary(str, Enum):
     """Week boundary definitions for timecard generation."""
 
@@ -35,6 +44,8 @@ class EntityType(str, Enum):
     MEETING = "meeting"
     NOTE = "note"
     REMINDER = "reminder"
+    ACTION_ITEM = "action_item"
+    BOOKMARK = "bookmark"
 
 
 class ProjectStatus(str, Enum):

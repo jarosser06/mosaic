@@ -99,6 +99,8 @@ from .resources import resource_handlers  # noqa: E402, F401
 # Import tools to register them with the server
 # This triggers the @mcp.tool() decorators
 from .tools import (  # noqa: E402, F401
+    action_item_tools,
+    bookmark_tools,
     logging_tools,
     notification_tools,
     query_tools,

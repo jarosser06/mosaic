@@ -30,21 +30,20 @@ async def log_work_session(
     input: LogWorkSessionInput, ctx: Context[Any, AppContext, Any]
 ) -> LogWorkSessionOutput:
     """
-    Log a work session with automatic half-hour duration rounding.
+    Log a work session.
 
-    Creates a work session record with start/end times, project association,
-    and optional description. Duration is automatically calculated using
-    half-hour rounding rules.
+    Creates a work session record with date, duration, project association,
+    and optional description.
 
     Args:
-        input: Work session details (times, project, description, privacy)
+        input: Work session details (date, duration, project, description, privacy)
         ctx: MCP context with app resources
 
     Returns:
-        LogWorkSessionOutput: Created work session with calculated duration
+        LogWorkSessionOutput: Created work session
 
     Raises:
-        ValueError: If times are invalid or project doesn't exist
+        ValueError: If duration is invalid or project doesn't exist
     """
     app_ctx = ctx.request_context.lifespan_context
 
@@ -54,8 +53,8 @@ async def log_work_session(
 
             work_session = await service.create_work_session(
                 project_id=input.project_id,
-                start_time=input.start_time,
-                end_time=input.end_time,
+                date=input.date,
+                duration_hours=input.duration_hours,
                 summary=input.description,
                 privacy_level=input.privacy_level,
                 tags=input.tags,
@@ -68,9 +67,8 @@ async def log_work_session(
 
             return LogWorkSessionOutput(
                 id=work_session.id,
-                start_time=work_session.start_time,
-                end_time=work_session.end_time,
                 project_id=work_session.project_id,
+                date=work_session.date,
                 duration_hours=work_session.duration_hours,
                 description=work_session.summary,
                 privacy_level=work_session.privacy_level,

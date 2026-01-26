@@ -36,8 +36,8 @@ async def update_work_session(
     """
     Update an existing work session.
 
-    Modifies work session fields. If start_time or end_time change,
-    duration is automatically recalculated with half-hour rounding.
+    Modifies work session fields including project, date, duration,
+    description, privacy level, and tags.
 
     Args:
         work_session_id: ID of work session to update
@@ -45,10 +45,10 @@ async def update_work_session(
         ctx: MCP context with app resources
 
     Returns:
-        UpdateWorkSessionOutput: Updated work session with recalculated duration
+        UpdateWorkSessionOutput: Updated work session
 
     Raises:
-        ValueError: If work session not found or times are invalid
+        ValueError: If work session not found or duration is invalid
     """
     app_ctx = ctx.request_context.lifespan_context
 
@@ -58,23 +58,13 @@ async def update_work_session(
 
             work_session = await service.update_work_session(
                 work_session_id=work_session_id,
-                start_time=input.start_time,
-                end_time=input.end_time,
+                project_id=input.project_id,
+                date=input.date,
+                duration_hours=input.duration_hours,
                 summary=input.description,
                 privacy_level=input.privacy_level,
+                tags=input.tags,
             )
-
-            # Update tags if provided
-            if input.tags is not None:
-                work_session.tags = input.tags
-
-            # Update project_id if provided
-            if input.project_id is not None:
-                work_session.project_id = input.project_id
-
-            # Flush and refresh to ensure all fields are up to date
-            await session.flush()
-            await session.refresh(work_session)
 
             # Commit transaction
             await session.commit()
@@ -83,9 +73,8 @@ async def update_work_session(
 
             return UpdateWorkSessionOutput(
                 id=work_session.id,
-                start_time=work_session.start_time,
-                end_time=work_session.end_time,
                 project_id=work_session.project_id,
+                date=work_session.date,
                 duration_hours=work_session.duration_hours,
                 description=work_session.summary,
                 privacy_level=work_session.privacy_level,

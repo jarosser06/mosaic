@@ -5,7 +5,7 @@ including meeting-to-work-session generation, timecard workflows, and
 multi-entity operations.
 """
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from unittest.mock import MagicMock
 
@@ -30,12 +30,9 @@ class TestComplexWorkflows:
     def mock_context(self, session: AsyncSession):
         """Create mock MCP context."""
         ctx = MagicMock()
-        ctx.request_context.lifespan_result.session_factory.return_value.__aenter__.return_value = (
-            session
-        )
-        ctx.request_context.lifespan_result.session_factory.return_value.__aexit__.return_value = (
-            None
-        )
+        factory = ctx.request_context.lifespan_context.session_factory
+        factory.return_value.__aenter__.return_value = session
+        factory.return_value.__aexit__.return_value = None
         return ctx
 
     @pytest.mark.asyncio
@@ -84,8 +81,8 @@ class TestComplexWorkflows:
 
         # Step 2: Log work session to project
         work_input = LogWorkSessionInput(
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 17, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
+            duration_hours=Decimal("8.0"),
             project_id=project_result.id,
             description="Initial development work",
         )
@@ -108,8 +105,8 @@ class TestComplexWorkflows:
         # Log 3 work sessions on same day
         for i in range(3):
             work_input = LogWorkSessionInput(
-                start_time=datetime(2024, 1, 15, 9 + i * 3, 0, tzinfo=timezone.utc),
-                end_time=datetime(2024, 1, 15, 11 + i * 3, 0, tzinfo=timezone.utc),
+                date=date(2024, 1, 15),
+                duration_hours=Decimal("2.0"),
                 project_id=project.id,
                 description=f"Work session {i + 1}",
             )
@@ -174,8 +171,8 @@ class TestComplexWorkflows:
         """Test privacy levels are preserved across related entities."""
         # Create public work session
         public_work = LogWorkSessionInput(
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
+            duration_hours=Decimal("3.0"),
             project_id=project.id,
             description="Public work",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -184,8 +181,8 @@ class TestComplexWorkflows:
 
         # Create private work session
         private_work = LogWorkSessionInput(
-            start_time=datetime(2024, 1, 15, 13, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 17, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
+            duration_hours=Decimal("4.0"),
             project_id=project.id,
             description="Private work",
             privacy_level=PrivacyLevel.PRIVATE,
@@ -207,8 +204,8 @@ class TestComplexWorkflows:
 
         # Create work session with tags
         work_input = LogWorkSessionInput(
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
+            duration_hours=Decimal("3.0"),
             project_id=project.id,
             description="Backend work",
             tags=["backend", "api", "authentication"],
@@ -268,8 +265,8 @@ class TestComplexWorkflows:
 
         # Create work session
         work_input = LogWorkSessionInput(
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
+            duration_hours=Decimal("3.0"),
             project_id=project.id,
             description="Initial work",
         )
@@ -292,30 +289,19 @@ class TestComplexWorkflows:
         project: Project,
     ):
         """Test full timecard generation workflow."""
-        from datetime import date
-
         from src.mosaic.services.work_session_service import WorkSessionService
 
         # Create multiple work sessions
         sessions_data = [
-            (
-                datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-                datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
-            ),
-            (
-                datetime(2024, 1, 15, 13, 0, tzinfo=timezone.utc),
-                datetime(2024, 1, 15, 17, 0, tzinfo=timezone.utc),
-            ),
-            (
-                datetime(2024, 1, 16, 9, 0, tzinfo=timezone.utc),
-                datetime(2024, 1, 16, 17, 0, tzinfo=timezone.utc),
-            ),
+            (date(2024, 1, 15), Decimal("3.0")),
+            (date(2024, 1, 15), Decimal("4.0")),
+            (date(2024, 1, 16), Decimal("8.0")),
         ]
 
-        for start, end in sessions_data:
+        for work_date, duration in sessions_data:
             work_input = LogWorkSessionInput(
-                start_time=start,
-                end_time=end,
+                date=work_date,
+                duration_hours=duration,
                 project_id=project.id,
             )
             await log_work_session(work_input, mock_context)

@@ -35,8 +35,6 @@ class TestFlexibleQuery:
         work_session = WorkSession(
             project_id=project.id,
             date=date(2024, 1, 15),
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("1.0"),
             summary="Work",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -45,7 +43,7 @@ class TestFlexibleQuery:
 
         meeting = Meeting(
             title="Team Meeting",
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
             duration_minutes=60,
             summary="Meeting",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -77,8 +75,6 @@ class TestFlexibleQuery:
         work_session = WorkSession(
             project_id=project.id,
             date=date(2024, 1, 15),
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("1.0"),
             summary="Work",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -104,8 +100,6 @@ class TestFlexibleQuery:
         ws1 = WorkSession(
             project_id=project.id,
             date=date(2024, 1, 10),
-            start_time=datetime(2024, 1, 10, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 10, 10, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("1.0"),
             summary="Early",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -113,8 +107,6 @@ class TestFlexibleQuery:
         ws2 = WorkSession(
             project_id=project.id,
             date=date(2024, 1, 15),
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("1.0"),
             summary="Middle",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -122,8 +114,6 @@ class TestFlexibleQuery:
         ws3 = WorkSession(
             project_id=project.id,
             date=date(2024, 1, 20),
-            start_time=datetime(2024, 1, 20, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 20, 10, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("1.0"),
             summary="Late",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -160,8 +150,6 @@ class TestFlexibleQuery:
             ws = WorkSession(
                 project_id=project.id,
                 date=date(2024, 1, i + 1),
-                start_time=datetime(2024, 1, i + 1, 9, 0, tzinfo=timezone.utc),
-                end_time=datetime(2024, 1, i + 1, 10, 0, tzinfo=timezone.utc),
                 duration_hours=Decimal("1.0"),
                 summary=f"Session {i}",
                 privacy_level=PrivacyLevel.PUBLIC,
@@ -187,8 +175,6 @@ class TestPrivacyFiltering:
         ws_public = WorkSession(
             project_id=project.id,
             date=date(2024, 1, 15),
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("1.0"),
             summary="Public",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -196,8 +182,6 @@ class TestPrivacyFiltering:
         ws_private = WorkSession(
             project_id=project.id,
             date=date(2024, 1, 15),
-            start_time=datetime(2024, 1, 15, 11, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("1.0"),
             summary="Private",
             privacy_level=PrivacyLevel.PRIVATE,
@@ -221,8 +205,6 @@ class TestPrivacyFiltering:
         ws_public = WorkSession(
             project_id=project.id,
             date=date(2024, 1, 15),
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("1.0"),
             summary="Public",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -230,8 +212,6 @@ class TestPrivacyFiltering:
         ws_private = WorkSession(
             project_id=project.id,
             date=date(2024, 1, 15),
-            start_time=datetime(2024, 1, 15, 11, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("1.0"),
             summary="Private",
             privacy_level=PrivacyLevel.PRIVATE,
@@ -256,8 +236,6 @@ class TestPrivacyFiltering:
         ws_public = WorkSession(
             project_id=project.id,
             date=date(2024, 1, 15),
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("1.0"),
             summary="Public",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -265,8 +243,6 @@ class TestPrivacyFiltering:
         ws_internal = WorkSession(
             project_id=project.id,
             date=date(2024, 1, 15),
-            start_time=datetime(2024, 1, 15, 11, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("1.0"),
             summary="Internal",
             privacy_level=PrivacyLevel.INTERNAL,
@@ -274,8 +250,6 @@ class TestPrivacyFiltering:
         ws_private = WorkSession(
             project_id=project.id,
             date=date(2024, 1, 15),
-            start_time=datetime(2024, 1, 15, 13, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 14, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("1.0"),
             summary="Private",
             privacy_level=PrivacyLevel.PRIVATE,
@@ -297,14 +271,14 @@ class TestPrivacyFiltering:
         """Test privacy filtering works for meetings."""
         meeting_public = Meeting(
             title="Public Meeting",
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
             duration_minutes=60,
             summary="Public Meeting",
             privacy_level=PrivacyLevel.PUBLIC,
         )
         meeting_private = Meeting(
             title="Private Meeting",
-            start_time=datetime(2024, 1, 15, 11, 0, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 15, 14, 0, tzinfo=timezone.utc),
             duration_minutes=60,
             summary="Private Meeting",
             privacy_level=PrivacyLevel.PRIVATE,
@@ -394,8 +368,6 @@ class TestTextSearch:
         ws1 = WorkSession(
             project_id=project.id,
             date=date(2024, 1, 15),
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("1.0"),
             summary="Implement feature X",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -403,8 +375,6 @@ class TestTextSearch:
         ws2 = WorkSession(
             project_id=project.id,
             date=date(2024, 1, 15),
-            start_time=datetime(2024, 1, 15, 11, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("1.0"),
             summary="Fix bug Y",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -427,8 +397,6 @@ class TestTextSearch:
         ws = WorkSession(
             project_id=project.id,
             date=date(2024, 1, 15),
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("1.0"),
             summary="Important Task",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -483,14 +451,14 @@ class TestTextSearch:
         """Test text search finds meetings by title."""
         meeting1 = Meeting(
             title="Sprint Planning Session",
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
             duration_minutes=60,
             summary="Discussion about upcoming sprint",
             privacy_level=PrivacyLevel.PUBLIC,
         )
         meeting2 = Meeting(
             title="Daily Standup",
-            start_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 16, 9, 0, tzinfo=timezone.utc),
             duration_minutes=15,
             summary="Quick status update",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -512,21 +480,21 @@ class TestTextSearch:
         """Test text search finds meetings in either title or summary."""
         meeting1 = Meeting(
             title="Team Sync",
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
             duration_minutes=30,
             summary="Discussion about architecture",
             privacy_level=PrivacyLevel.PUBLIC,
         )
         meeting2 = Meeting(
             title="Architecture Review",
-            start_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 16, 14, 0, tzinfo=timezone.utc),
             duration_minutes=60,
             summary="System design discussion",
             privacy_level=PrivacyLevel.PUBLIC,
         )
         meeting3 = Meeting(
             title="Client Call",
-            start_time=datetime(2024, 1, 15, 11, 0, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 17, 11, 0, tzinfo=timezone.utc),
             duration_minutes=30,
             summary="Budget and timeline discussion",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -677,8 +645,6 @@ class TestRelationshipFilters:
         ws1 = WorkSession(
             project_id=project1.id,
             date=date(2024, 1, 15),
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("1.0"),
             summary="Work on A",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -686,8 +652,6 @@ class TestRelationshipFilters:
         ws2 = WorkSession(
             project_id=project2.id,
             date=date(2024, 1, 15),
-            start_time=datetime(2024, 1, 15, 11, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("1.0"),
             summary="Work on B",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -734,8 +698,6 @@ class TestRelationshipFilters:
         ws1 = WorkSession(
             project_id=project1.id,
             date=date(2024, 1, 15),
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("1.0"),
             summary="Work for Employer A",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -743,8 +705,6 @@ class TestRelationshipFilters:
         ws2 = WorkSession(
             project_id=project2.id,
             date=date(2024, 1, 15),
-            start_time=datetime(2024, 1, 15, 11, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("1.0"),
             summary="Work for Employer B",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -770,14 +730,14 @@ class TestRelationshipFilters:
 
         meeting1 = Meeting(
             title="Meeting 1",
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
             duration_minutes=60,
             summary="Meeting 1",
             privacy_level=PrivacyLevel.PUBLIC,
         )
         meeting2 = Meeting(
             title="Meeting 2",
-            start_time=datetime(2024, 1, 15, 11, 0, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 16, 14, 0, tzinfo=timezone.utc),
             duration_minutes=60,
             summary="Meeting 2",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -881,7 +841,7 @@ class TestLimitFunctionality:
         for i in range(5):
             meeting = Meeting(
                 title=f"Meeting {i}",
-                start_time=datetime(2024, 1, i + 1, 9, 0, tzinfo=timezone.utc),
+                start_time=datetime(2024, 1, 15 + i, 10, 0, tzinfo=timezone.utc),
                 duration_minutes=60,
                 summary=f"Summary {i}",
                 privacy_level=PrivacyLevel.PUBLIC,
@@ -1228,14 +1188,14 @@ class TestMeetingDateFilters:
         """Test meeting start_date filter (lines 242-243)."""
         meeting1 = Meeting(
             title="Old Meeting",
-            start_time=datetime(2024, 1, 10, 9, 0, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 10, 10, 0, tzinfo=timezone.utc),
             duration_minutes=60,
             summary="Old",
             privacy_level=PrivacyLevel.PUBLIC,
         )
         meeting2 = Meeting(
             title="New Meeting",
-            start_time=datetime(2024, 1, 20, 9, 0, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 16, 10, 0, tzinfo=timezone.utc),
             duration_minutes=60,
             summary="New",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -1257,14 +1217,14 @@ class TestMeetingDateFilters:
         """Test meeting end_date filter (lines 245-246)."""
         meeting1 = Meeting(
             title="Old Meeting",
-            start_time=datetime(2024, 1, 10, 9, 0, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 10, 10, 0, tzinfo=timezone.utc),
             duration_minutes=60,
             summary="Old",
             privacy_level=PrivacyLevel.PUBLIC,
         )
         meeting2 = Meeting(
             title="New Meeting",
-            start_time=datetime(2024, 1, 20, 9, 0, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 20, 10, 0, tzinfo=timezone.utc),
             duration_minutes=60,
             summary="New",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -1286,21 +1246,21 @@ class TestMeetingDateFilters:
         """Test meeting privacy_levels filter (line 250)."""
         meeting1 = Meeting(
             title="Public Meeting",
-            start_time=datetime(2024, 1, 10, 9, 0, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
             duration_minutes=60,
             summary="Public",
             privacy_level=PrivacyLevel.PUBLIC,
         )
         meeting2 = Meeting(
             title="Internal Meeting",
-            start_time=datetime(2024, 1, 10, 10, 0, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 16, 10, 0, tzinfo=timezone.utc),
             duration_minutes=60,
             summary="Internal",
             privacy_level=PrivacyLevel.INTERNAL,
         )
         meeting3 = Meeting(
             title="Private Meeting",
-            start_time=datetime(2024, 1, 10, 11, 0, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 17, 10, 0, tzinfo=timezone.utc),
             duration_minutes=60,
             summary="Private",
             privacy_level=PrivacyLevel.PRIVATE,
@@ -1336,7 +1296,7 @@ class TestMeetingDateFilters:
 
         meeting1 = Meeting(
             title="Project A Meeting",
-            start_time=datetime(2024, 1, 10, 9, 0, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
             duration_minutes=60,
             summary="A",
             privacy_level=PrivacyLevel.PUBLIC,
@@ -1344,7 +1304,7 @@ class TestMeetingDateFilters:
         )
         meeting2 = Meeting(
             title="Project B Meeting",
-            start_time=datetime(2024, 1, 10, 10, 0, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 16, 10, 0, tzinfo=timezone.utc),
             duration_minutes=60,
             summary="B",
             privacy_level=PrivacyLevel.PUBLIC,

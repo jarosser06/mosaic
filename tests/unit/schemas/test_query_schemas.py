@@ -53,15 +53,13 @@ def test_query_input_rejects_long_query():
 
 def test_work_session_result_discriminator():
     """Test WorkSessionResult has correct discriminator."""
-    start = datetime(2026, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
-    end = datetime(2026, 1, 15, 17, 0, 0, tzinfo=timezone.utc)
+    work_date = date(2026, 1, 15)
     created = datetime(2026, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
     updated = datetime(2026, 1, 15, 9, 5, 0, tzinfo=timezone.utc)
 
     schema = WorkSessionResult(
         id=1,
-        start_time=start,
-        end_time=end,
+        date=work_date,
         project_id=42,
         duration_hours=Decimal("8.0"),
         description="Work description",
@@ -73,6 +71,7 @@ def test_work_session_result_discriminator():
 
     assert schema.entity_type == "work_session"
     assert schema.id == 1
+    assert schema.date == work_date
 
 
 def test_meeting_result_discriminator():

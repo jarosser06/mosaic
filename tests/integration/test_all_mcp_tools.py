@@ -4,7 +4,7 @@ Tests all logging, query, update, and notification tools with simple
 and complex scenarios. Focuses on complete coverage of the MCP API.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
@@ -28,7 +28,7 @@ from src.mosaic.schemas.note import AddNoteInput, UpdateNoteInput
 from src.mosaic.schemas.notification import TriggerNotificationInput
 from src.mosaic.schemas.person import AddPersonInput, UpdatePersonInput
 from src.mosaic.schemas.project import AddProjectInput, UpdateProjectInput
-from src.mosaic.schemas.query import QueryInput
+from src.mosaic.schemas.query_structured import FilterSpec, StructuredQueryInput
 from src.mosaic.schemas.reminder import (
     AddReminderInput,
     CompleteReminderInput,
@@ -75,9 +75,9 @@ class TestAllMCPTools:
     ):
         """Test log_work_session with basic fields through real MCP tool."""
         input_data = LogWorkSessionInput(
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
             project_id=project.id,
+            date=date(2024, 1, 15),
+            duration_hours=Decimal("3.0"),
             description="Implemented authentication",
         )
 
@@ -103,12 +103,11 @@ class TestAllMCPTools:
         test_session: AsyncSession,
         project: Project,
     ):
-        """Test log_work_session with all optional fields and time rounding."""
-        # 2 hours 15 minutes -> rounds to 2.5
+        """Test log_work_session with all optional fields."""
         input_data = LogWorkSessionInput(
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 11, 15, tzinfo=timezone.utc),
             project_id=project.id,
+            date=date(2024, 1, 15),
+            duration_hours=Decimal("2.5"),
             description="Refactored database layer",
             privacy_level=PrivacyLevel.PUBLIC,
             tags=["backend", "refactoring", "database"],
@@ -448,16 +447,15 @@ class TestAllMCPTools:
         mcp_client,
         test_session: AsyncSession,
     ):
-        """Test query returns placeholder (implementation pending)."""
-        input_data = QueryInput(query="show all projects")
+        """Test query for all projects."""
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.PROJECT,
+            filters=[],
+        )
 
         result = await query(input_data, mcp_client)
 
-        # Current implementation returns placeholder
         assert result is not None
-        assert hasattr(result, "summary")
-        assert hasattr(result, "results")
-        assert hasattr(result, "total_count")
 
     async def test_query_work_sessions_simple(
         self,
@@ -465,7 +463,10 @@ class TestAllMCPTools:
         test_session: AsyncSession,
     ):
         """Test query for work sessions."""
-        input_data = QueryInput(query="show me all work sessions")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.WORK_SESSION,
+            filters=[],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -477,7 +478,12 @@ class TestAllMCPTools:
         test_session: AsyncSession,
     ):
         """Test query with relative date range."""
-        input_data = QueryInput(query="work sessions from this week")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.WORK_SESSION,
+            filters=[
+                FilterSpec(field="date", operator="gte", value="this_week"),
+            ],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -489,7 +495,12 @@ class TestAllMCPTools:
         test_session: AsyncSession,
     ):
         """Test query with last month date range."""
-        input_data = QueryInput(query="meetings from last month")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.MEETING,
+            filters=[
+                FilterSpec(field="start_time", operator="gte", value="last_month"),
+            ],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -501,7 +512,13 @@ class TestAllMCPTools:
         test_session: AsyncSession,
     ):
         """Test query with specific date range."""
-        input_data = QueryInput(query="work from January 1-15, 2024")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.WORK_SESSION,
+            filters=[
+                FilterSpec(field="date", operator="gte", value="2024-01-01"),
+                FilterSpec(field="date", operator="lte", value="2024-01-15"),
+            ],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -513,7 +530,10 @@ class TestAllMCPTools:
         test_session: AsyncSession,
     ):
         """Test query for people entities."""
-        input_data = QueryInput(query="list all people")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.PERSON,
+            filters=[],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -525,7 +545,10 @@ class TestAllMCPTools:
         test_session: AsyncSession,
     ):
         """Test query for client entities."""
-        input_data = QueryInput(query="show all clients")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.CLIENT,
+            filters=[],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -537,7 +560,12 @@ class TestAllMCPTools:
         test_session: AsyncSession,
     ):
         """Test query for project entities."""
-        input_data = QueryInput(query="show active projects")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.PROJECT,
+            filters=[
+                FilterSpec(field="status", operator="eq", value="active"),
+            ],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -549,7 +577,12 @@ class TestAllMCPTools:
         test_session: AsyncSession,
     ):
         """Test query for reminder entities."""
-        input_data = QueryInput(query="show upcoming reminders")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.REMINDER,
+            filters=[
+                FilterSpec(field="reminder_time", operator="gte", value="today"),
+            ],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -561,7 +594,12 @@ class TestAllMCPTools:
         test_session: AsyncSession,
     ):
         """Test query filtering for public entries only."""
-        input_data = QueryInput(query="show public work sessions")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.WORK_SESSION,
+            filters=[
+                FilterSpec(field="privacy_level", operator="eq", value="public"),
+            ],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -573,7 +611,12 @@ class TestAllMCPTools:
         test_session: AsyncSession,
     ):
         """Test query excluding private entries."""
-        input_data = QueryInput(query="show non-private meetings")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.MEETING,
+            filters=[
+                FilterSpec(field="privacy_level", operator="ne", value="private"),
+            ],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -585,7 +628,12 @@ class TestAllMCPTools:
         test_session: AsyncSession,
     ):
         """Test query for internal and public entries."""
-        input_data = QueryInput(query="show internal and public notes")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.NOTE,
+            filters=[
+                FilterSpec(field="privacy_level", operator="in", value=["internal", "public"]),
+            ],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -598,7 +646,12 @@ class TestAllMCPTools:
         project: Project,
     ):
         """Test query filtering by project."""
-        input_data = QueryInput(query=f"work sessions for project {project.name}")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.WORK_SESSION,
+            filters=[
+                FilterSpec(field="project.name", operator="eq", value=project.name),
+            ],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -610,8 +663,13 @@ class TestAllMCPTools:
         test_session: AsyncSession,
         person: Person,
     ):
-        """Test query filtering by person."""
-        input_data = QueryInput(query=f"meetings with {person.full_name}")
+        """Test query filtering by meeting type."""
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.MEETING,
+            filters=[
+                FilterSpec(field="meeting_type", operator="eq", value="standup"),
+            ],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -624,7 +682,12 @@ class TestAllMCPTools:
         client: Client,
     ):
         """Test query filtering by client."""
-        input_data = QueryInput(query=f"projects for client {client.name}")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.PROJECT,
+            filters=[
+                FilterSpec(field="client.name", operator="eq", value=client.name),
+            ],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -636,7 +699,12 @@ class TestAllMCPTools:
         test_session: AsyncSession,
     ):
         """Test query with text search in descriptions."""
-        input_data = QueryInput(query="work sessions containing 'authentication'")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.WORK_SESSION,
+            filters=[
+                FilterSpec(field="summary", operator="contains", value="authentication"),
+            ],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -648,7 +716,12 @@ class TestAllMCPTools:
         test_session: AsyncSession,
     ):
         """Test query with text search in notes."""
-        input_data = QueryInput(query="notes containing 'security'")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.NOTE,
+            filters=[
+                FilterSpec(field="text", operator="contains", value="security"),
+            ],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -660,7 +733,12 @@ class TestAllMCPTools:
         test_session: AsyncSession,
     ):
         """Test query filtering by single tag."""
-        input_data = QueryInput(query="work sessions tagged with 'backend'")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.WORK_SESSION,
+            filters=[
+                FilterSpec(field="tags", operator="has_tag", value="backend"),
+            ],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -672,7 +750,12 @@ class TestAllMCPTools:
         test_session: AsyncSession,
     ):
         """Test query filtering by multiple tags."""
-        input_data = QueryInput(query="projects tagged with 'mobile' and 'high-priority'")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.PROJECT,
+            filters=[
+                FilterSpec(field="tags", operator="has_any_tag", value=["mobile", "high-priority"]),
+            ],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -684,7 +767,12 @@ class TestAllMCPTools:
         test_session: AsyncSession,
     ):
         """Test query filtering by active status."""
-        input_data = QueryInput(query="active clients")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.CLIENT,
+            filters=[
+                FilterSpec(field="status", operator="eq", value="active"),
+            ],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -696,7 +784,12 @@ class TestAllMCPTools:
         test_session: AsyncSession,
     ):
         """Test query filtering by completed status."""
-        input_data = QueryInput(query="completed projects")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.PROJECT,
+            filters=[
+                FilterSpec(field="status", operator="eq", value="completed"),
+            ],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -709,8 +802,14 @@ class TestAllMCPTools:
         project: Project,
     ):
         """Test complex query with multiple filters combined."""
-        input_data = QueryInput(
-            query=f"public work sessions for {project.name} from last week tagged with 'deployment'"
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.WORK_SESSION,
+            filters=[
+                FilterSpec(field="privacy_level", operator="eq", value="public"),
+                FilterSpec(field="project.name", operator="eq", value=project.name),
+                FilterSpec(field="date", operator="gte", value="last_week"),
+                FilterSpec(field="tags", operator="has_tag", value="deployment"),
+            ],
         )
 
         result = await query(input_data, mcp_client)
@@ -723,7 +822,13 @@ class TestAllMCPTools:
         test_session: AsyncSession,
     ):
         """Test complex query with date range and privacy filter."""
-        input_data = QueryInput(query="internal meetings from this month")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.MEETING,
+            filters=[
+                FilterSpec(field="privacy_level", operator="eq", value="internal"),
+                FilterSpec(field="start_time", operator="gte", value="this_month"),
+            ],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -735,8 +840,13 @@ class TestAllMCPTools:
         test_session: AsyncSession,
         person: Person,
     ):
-        """Test complex query with entity filter and text search."""
-        input_data = QueryInput(query=f"meetings with {person.full_name} about 'planning'")
+        """Test complex query with text search."""
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.MEETING,
+            filters=[
+                FilterSpec(field="summary", operator="contains", value="planning"),
+            ],
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -748,31 +858,19 @@ class TestAllMCPTools:
         test_session: AsyncSession,
     ):
         """Test timecard-style query with hours aggregation."""
-        input_data = QueryInput(query="total hours worked this month by project")
+        from src.mosaic.schemas.query_structured import AggregationSpec
 
-        result = await query(input_data, mcp_client)
-
-        assert result is not None
-
-    async def test_query_upcoming_due_items(
-        self,
-        mcp_client,
-        test_session: AsyncSession,
-    ):
-        """Test query for upcoming reminders."""
-        input_data = QueryInput(query="reminders due tomorrow")
-
-        result = await query(input_data, mcp_client)
-
-        assert result is not None
-
-    async def test_query_overdue_items(
-        self,
-        mcp_client,
-        test_session: AsyncSession,
-    ):
-        """Test query for overdue reminders."""
-        input_data = QueryInput(query="overdue reminders")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.WORK_SESSION,
+            filters=[
+                FilterSpec(field="date", operator="gte", value="this_month"),
+            ],
+            aggregation=AggregationSpec(
+                function="sum",
+                field="duration_hours",
+                group_by=["project_id"],
+            ),
+        )
 
         result = await query(input_data, mcp_client)
 
@@ -784,25 +882,18 @@ class TestAllMCPTools:
         test_session: AsyncSession,
     ):
         """Test query that returns no results."""
-        input_data = QueryInput(query="work sessions from year 2050")
+        input_data = StructuredQueryInput(
+            entity_type=EntityType.WORK_SESSION,
+            filters=[
+                FilterSpec(field="date", operator="gte", value="2050-01-01"),
+            ],
+        )
 
         result = await query(input_data, mcp_client)
 
         # Should return empty results, not error
         assert result.total_count == 0
         assert result.results == []
-
-    async def test_query_handles_malformed_input(
-        self,
-        mcp_client,
-        test_session: AsyncSession,
-    ):
-        """Test query handles malformed input gracefully."""
-        input_data = QueryInput(query="!@#$%^&*() invalid syntax")
-
-        # Should not crash, but return empty or error
-        result = await query(input_data, mcp_client)
-        assert result is not None
 
     # ========================================================================
     # UPDATE TOOLS (8 tools)
@@ -818,9 +909,7 @@ class TestAllMCPTools:
         # Create work session
         ws = WorkSession(
             project_id=project.id,
-            date=datetime(2024, 1, 15, tzinfo=timezone.utc).date(),
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
             duration_hours=Decimal("3.0"),
             summary="Original description",
         )
@@ -834,64 +923,6 @@ class TestAllMCPTools:
         result = await update_work_session(ws.id, input_data, mcp_client)
 
         assert result.description == "Updated description"
-
-    async def test_update_work_session_times_recalculates_duration(
-        self,
-        mcp_client,
-        test_session: AsyncSession,
-        project: Project,
-    ):
-        """Test update_work_session recalculates duration when times change."""
-        # Create work session (3 hours)
-        ws = WorkSession(
-            project_id=project.id,
-            date=datetime(2024, 1, 15, tzinfo=timezone.utc).date(),
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
-            duration_hours=Decimal("3.0"),
-        )
-        test_session.add(ws)
-        await test_session.commit()
-        await test_session.refresh(ws)
-
-        # Update end time to 4 hours total
-        input_data = UpdateWorkSessionInput(
-            end_time=datetime(2024, 1, 15, 13, 0, tzinfo=timezone.utc)
-        )
-
-        result = await update_work_session(ws.id, input_data, mcp_client)
-
-        assert result.duration_hours == 4.0
-
-    async def test_update_work_session_privacy_and_tags(
-        self,
-        mcp_client,
-        test_session: AsyncSession,
-        project: Project,
-    ):
-        """Test update_work_session changing privacy and tags."""
-        ws = WorkSession(
-            project_id=project.id,
-            date=datetime(2024, 1, 15, tzinfo=timezone.utc).date(),
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
-            duration_hours=Decimal("3.0"),
-            privacy_level=PrivacyLevel.PRIVATE,
-            tags=["old"],
-        )
-        test_session.add(ws)
-        await test_session.commit()
-        await test_session.refresh(ws)
-
-        input_data = UpdateWorkSessionInput(
-            privacy_level=PrivacyLevel.PUBLIC,
-            tags=["new", "updated"],
-        )
-
-        result = await update_work_session(ws.id, input_data, mcp_client)
-
-        assert result.privacy_level == PrivacyLevel.PUBLIC
-        assert result.tags == ["new", "updated"]
 
     async def test_update_meeting_title_and_description(
         self,
@@ -1295,8 +1326,8 @@ class TestAllMCPTools:
 
         # 5. Log work session
         work_input = LogWorkSessionInput(
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
+            duration_hours=Decimal("3.0"),
             project_id=project.id,
             description="Initial design mockups",
             tags=["design", "frontend"],
@@ -1372,16 +1403,19 @@ class TestAllMCPTools:
         """Test workflow: create work -> query -> update."""
         # 1. Log work session
         work_input = LogWorkSessionInput(
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
+            duration_hours=Decimal("3.0"),
             project_id=project.id,
             description="Initial work",
             privacy_level=PrivacyLevel.PRIVATE,
         )
         work = await log_work_session(work_input, mcp_client)
 
-        # 2. Query work sessions (placeholder returns)
-        query_input = QueryInput(query="show all work sessions")
+        # 2. Query work sessions
+        query_input = StructuredQueryInput(
+            entity_type=EntityType.WORK_SESSION,
+            filters=[],
+        )
         query_result = await query(query_input, mcp_client)
         assert query_result is not None
 

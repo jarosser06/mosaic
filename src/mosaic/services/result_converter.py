@@ -158,8 +158,6 @@ class ResultConverter:
         return WorkSessionResult(
             id=ws.id,
             date=ws.date,
-            start_time=ws.start_time,
-            end_time=ws.end_time,
             project_id=ws.project_id,
             duration_hours=ws.duration_hours,
             description=ws.summary,

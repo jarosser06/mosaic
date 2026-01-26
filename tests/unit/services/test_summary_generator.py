@@ -1,6 +1,6 @@
 """Unit tests for SummaryGenerator service."""
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 import pytest
@@ -40,8 +40,7 @@ class TestSummaryGenerator:
         """Test generating summary when all results are private and excluded."""
         ws = WorkSessionResult(
             id=1,
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
             project_id=1,
             duration_hours=Decimal("3.0"),
             description="Private work",
@@ -58,8 +57,7 @@ class TestSummaryGenerator:
         """Test generating summary with one work session."""
         ws = WorkSessionResult(
             id=1,
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
             project_id=1,
             duration_hours=Decimal("3.0"),
             description="Implemented feature",
@@ -76,8 +74,7 @@ class TestSummaryGenerator:
         """Test generating summary with multiple work sessions."""
         ws1 = WorkSessionResult(
             id=1,
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
             project_id=1,
             duration_hours=Decimal("3.0"),
             description="Work 1",
@@ -89,8 +86,7 @@ class TestSummaryGenerator:
 
         ws2 = WorkSessionResult(
             id=2,
-            start_time=datetime(2024, 1, 16, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 16, 14, 30, tzinfo=timezone.utc),
+            date=date(2024, 1, 16),
             project_id=1,
             duration_hours=Decimal("5.5"),
             description="Work 2",
@@ -107,8 +103,7 @@ class TestSummaryGenerator:
         """Test work session summary respects privacy filtering."""
         ws_public = WorkSessionResult(
             id=1,
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
             project_id=1,
             duration_hours=Decimal("3.0"),
             description="Public work",
@@ -120,8 +115,7 @@ class TestSummaryGenerator:
 
         ws_private = WorkSessionResult(
             id=2,
-            start_time=datetime(2024, 1, 16, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 16, 14, 30, tzinfo=timezone.utc),
+            date=date(2024, 1, 16),
             project_id=1,
             duration_hours=Decimal("5.5"),
             description="Private work",
@@ -195,8 +189,7 @@ class TestSummaryGenerator:
         """Test generating summary with work sessions and meetings."""
         ws = WorkSessionResult(
             id=1,
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
             project_id=1,
             duration_hours=Decimal("3.0"),
             description="Work",
@@ -535,8 +528,6 @@ class TestSummaryGenerator:
 
     def test_generate_single_employment_history(self, generator: SummaryGenerator):
         """Test generating summary with one employment history."""
-        from datetime import date
-
         eh = EmploymentHistoryResult(
             id=1,
             person_id=1,
@@ -551,8 +542,6 @@ class TestSummaryGenerator:
 
     def test_generate_multiple_employment_histories(self, generator: SummaryGenerator):
         """Test generating summary with employment histories."""
-        from datetime import date
-
         eh1 = EmploymentHistoryResult(
             id=1,
             person_id=1,
@@ -578,8 +567,7 @@ class TestSummaryGenerator:
         """Test generating summary with three or more entity types."""
         ws = WorkSessionResult(
             id=1,
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
             project_id=1,
             duration_hours=Decimal("3.0"),
             description="Work",
@@ -622,8 +610,7 @@ class TestSummaryGenerator:
         """Test generating summary with complex mix of entity types."""
         ws1 = WorkSessionResult(
             id=1,
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
             project_id=1,
             duration_hours=Decimal("3.0"),
             description="Work 1",
@@ -635,8 +622,7 @@ class TestSummaryGenerator:
 
         ws2 = WorkSessionResult(
             id=2,
-            start_time=datetime(2024, 1, 16, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 16, 13, 30, tzinfo=timezone.utc),
+            date=date(2024, 1, 16),
             project_id=1,
             duration_hours=Decimal("4.5"),
             description="Work 2",
@@ -723,8 +709,7 @@ class TestSummaryGenerator:
         """Test _group_by_entity_type method."""
         ws = WorkSessionResult(
             id=1,
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
             project_id=1,
             duration_hours=Decimal("3.0"),
             description="Work",
@@ -761,8 +746,7 @@ class TestSummaryGenerator:
         """Test _summarize_work_sessions method."""
         ws1 = WorkSessionResult(
             id=1,
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
             project_id=1,
             duration_hours=Decimal("3.0"),
             description="Work 1",
@@ -774,8 +758,7 @@ class TestSummaryGenerator:
 
         ws2 = WorkSessionResult(
             id=2,
-            start_time=datetime(2024, 1, 16, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 16, 13, 15, tzinfo=timezone.utc),
+            date=date(2024, 1, 16),
             project_id=1,
             duration_hours=Decimal("4.25"),
             description="Work 2",
@@ -792,8 +775,7 @@ class TestSummaryGenerator:
         """Test _summarize_work_sessions with single work session."""
         ws = WorkSessionResult(
             id=1,
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
             project_id=1,
             duration_hours=Decimal("3.0"),
             description="Work",

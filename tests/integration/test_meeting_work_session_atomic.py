@@ -59,8 +59,8 @@ class TestMeetingWorkSessionAtomic:
 
         # Verify work session details
         assert work_session.project_id == project.id
-        assert work_session.start_time == start_time
-        assert work_session.duration_hours.quantize(work_session.duration_hours) > 0
+        assert work_session.date == start_time.date()
+        assert work_session.duration_hours > 0
         assert work_session.summary == "Project kickoff meeting"
         assert work_session.privacy_level == PrivacyLevel.INTERNAL
 
@@ -97,16 +97,16 @@ class TestMeetingWorkSessionAtomic:
         assert db_ws is not None
 
     @pytest.mark.asyncio
-    async def test_work_session_duration_rounded(
+    async def test_work_session_duration_exact(
         self,
         meeting_service: MeetingService,
         session: AsyncSession,
         project: Project,
     ):
-        """Test that work session duration is rounded correctly."""
+        """Test that work session duration is calculated exactly from meeting duration."""
         start_time = datetime(2024, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
 
-        # 45 minutes should round to 1.0 hours
+        # 45 minutes = 0.75 hours (exact, no rounding)
         meeting, work_session = await meeting_service.create_meeting_with_work_session(
             start_time=start_time,
             duration_minutes=45,
@@ -114,9 +114,9 @@ class TestMeetingWorkSessionAtomic:
             title="Short Meeting",
         )
 
-        assert work_session.duration_hours == pytest.approx(1.0, abs=0.01)
+        assert float(work_session.duration_hours) == pytest.approx(0.75, abs=0.01)
 
-        # 30 minutes should round to 0.5 hours
+        # 30 minutes = 0.5 hours (exact)
         meeting2, work_session2 = await meeting_service.create_meeting_with_work_session(
             start_time=start_time,
             duration_minutes=30,
@@ -124,7 +124,7 @@ class TestMeetingWorkSessionAtomic:
             title="Quick Sync",
         )
 
-        assert work_session2.duration_hours == pytest.approx(0.5, abs=0.01)
+        assert float(work_session2.duration_hours) == pytest.approx(0.5, abs=0.01)
 
     @pytest.mark.asyncio
     async def test_invalid_project_raises_error(

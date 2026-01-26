@@ -1,6 +1,6 @@
-"""Tests for WorkSession model."""
+"""Tests for WorkSession model (simplified: date + duration only)."""
 
-from datetime import date, datetime, timezone
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -19,14 +19,10 @@ from src.mosaic.models.work_session import WorkSession
 async def test_work_session_creation_minimal(session: AsyncSession, project: Project) -> None:
     """Test creating work session with minimal required fields."""
     work_date = date(2024, 1, 15)
-    start_time = datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc)
-    end_time = datetime(2024, 1, 15, 10, 30, tzinfo=timezone.utc)
 
     work_session = WorkSession(
         project_id=project.id,
         date=work_date,
-        start_time=start_time,
-        end_time=end_time,
         duration_hours=Decimal("1.5"),
     )
     session.add(work_session)
@@ -36,8 +32,6 @@ async def test_work_session_creation_minimal(session: AsyncSession, project: Pro
     assert work_session.id is not None
     assert work_session.project_id == project.id
     assert work_session.date == work_date
-    assert work_session.start_time == start_time
-    assert work_session.end_time == end_time
     assert work_session.duration_hours == Decimal("1.5")
     assert work_session.privacy_level == PrivacyLevel.PRIVATE
     assert work_session.summary is None
@@ -51,11 +45,10 @@ async def test_work_session_creation_full(session: AsyncSession, project: Projec
     work_session = WorkSession(
         project_id=project.id,
         date=date(2024, 1, 15),
-        start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-        end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
         duration_hours=Decimal("3.0"),
         summary="Implemented user authentication module",
         privacy_level=PrivacyLevel.INTERNAL,
+        tags=["backend", "authentication"],
     )
     session.add(work_session)
     await session.flush()
@@ -64,6 +57,7 @@ async def test_work_session_creation_full(session: AsyncSession, project: Projec
     assert work_session.summary == "Implemented user authentication module"
     assert work_session.privacy_level == PrivacyLevel.INTERNAL
     assert work_session.duration_hours == Decimal("3.0")
+    assert work_session.tags == ["backend", "authentication"]
 
 
 @pytest.mark.parametrize(
@@ -78,8 +72,6 @@ async def test_work_session_privacy_levels(
     work_session = WorkSession(
         project_id=project.id,
         date=date(2024, 1, 15),
-        start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-        end_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
         duration_hours=Decimal("1.0"),
         privacy_level=privacy_level,
     )
@@ -93,23 +85,24 @@ async def test_work_session_privacy_levels(
 @pytest.mark.parametrize(
     "duration",
     [
+        Decimal("0.1"),  # Very small duration
         Decimal("0.5"),  # 30 minutes
         Decimal("1.0"),  # 1 hour
         Decimal("2.5"),  # 2.5 hours
         Decimal("8.0"),  # Full day
         Decimal("12.5"),  # Long session
+        Decimal("16.0"),  # Very long session
+        Decimal("24.0"),  # Max duration
     ],
 )
 @pytest.mark.asyncio
 async def test_work_session_duration_values(
     session: AsyncSession, project: Project, duration: Decimal
 ) -> None:
-    """Test various duration values (half-hour increments)."""
+    """Test various duration values from very small to maximum."""
     work_session = WorkSession(
         project_id=project.id,
         date=date(2024, 1, 15),
-        start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-        end_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
         duration_hours=duration,
     )
     session.add(work_session)
@@ -127,8 +120,6 @@ async def test_work_session_relationship_with_project(
     work_session = WorkSession(
         project_id=project.id,
         date=date(2024, 1, 15),
-        start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-        end_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
         duration_hours=Decimal("1.0"),
     )
     session.add(work_session)
@@ -153,23 +144,17 @@ async def test_work_session_date_indexing(session: AsyncSession, project: Projec
     ws1 = WorkSession(
         project_id=project.id,
         date=date(2024, 1, 15),
-        start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-        end_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
         duration_hours=Decimal("1.0"),
     )
     ws2 = WorkSession(
         project_id=project.id,
         date=date(2024, 1, 16),
-        start_time=datetime(2024, 1, 16, 9, 0, tzinfo=timezone.utc),
-        end_time=datetime(2024, 1, 16, 10, 0, tzinfo=timezone.utc),
         duration_hours=Decimal("1.0"),
     )
     ws3 = WorkSession(
         project_id=project.id,
         date=date(2024, 1, 15),
-        start_time=datetime(2024, 1, 15, 14, 0, tzinfo=timezone.utc),
-        end_time=datetime(2024, 1, 15, 15, 0, tzinfo=timezone.utc),
-        duration_hours=Decimal("1.0"),
+        duration_hours=Decimal("2.0"),
     )
     session.add_all([ws1, ws2, ws3])
     await session.flush()
@@ -203,15 +188,11 @@ async def test_work_session_project_date_composite_index(
     ws1 = WorkSession(
         project_id=project.id,
         date=date(2024, 1, 15),
-        start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-        end_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
         duration_hours=Decimal("1.0"),
     )
     ws2 = WorkSession(
         project_id=project2.id,
         date=date(2024, 1, 15),
-        start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-        end_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
         duration_hours=Decimal("1.0"),
     )
     session.add_all([ws1, ws2])
@@ -234,8 +215,6 @@ async def test_work_session_summary_optional(session: AsyncSession, project: Pro
     work_session = WorkSession(
         project_id=project.id,
         date=date(2024, 1, 15),
-        start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-        end_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
         duration_hours=Decimal("1.0"),
         summary=None,
     )
@@ -248,18 +227,35 @@ async def test_work_session_summary_optional(session: AsyncSession, project: Pro
 
 @pytest.mark.asyncio
 async def test_work_session_decimal_precision(session: AsyncSession, project: Project) -> None:
-    """Test that duration_hours maintains decimal precision."""
+    """Test that duration_hours maintains decimal precision (1 decimal place)."""
     work_session = WorkSession(
         project_id=project.id,
         date=date(2024, 1, 15),
-        start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-        end_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
-        duration_hours=Decimal("2.5"),
+        duration_hours=Decimal("2.3"),
     )
     session.add(work_session)
     await session.flush()
     await session.refresh(work_session)
 
-    # Should maintain exact decimal value
-    assert work_session.duration_hours == Decimal("2.5")
+    # Database uses Numeric(4, 1) = 1 decimal place
+    assert work_session.duration_hours == Decimal("2.3")
     assert isinstance(work_session.duration_hours, Decimal)
+
+
+@pytest.mark.asyncio
+async def test_work_session_leap_day_edge_case(session: AsyncSession, project: Project) -> None:
+    """Test work session on leap day (2024-02-29)."""
+    leap_day = date(2024, 2, 29)  # 2024 is a leap year
+
+    work_session = WorkSession(
+        project_id=project.id,
+        date=leap_day,
+        duration_hours=Decimal("8.0"),
+        summary="Work on leap day",
+    )
+    session.add(work_session)
+    await session.flush()
+    await session.refresh(work_session)
+
+    assert work_session.date == leap_day
+    assert work_session.duration_hours == Decimal("8.0")

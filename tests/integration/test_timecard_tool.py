@@ -74,17 +74,16 @@ class TestGenerateTimecardTool:
         privacy_level: PrivacyLevel = PrivacyLevel.PRIVATE,
     ):
         """Helper to create a work session directly in database."""
-        from src.mosaic.models.work_session import WorkSession
-        from src.mosaic.services.time_utils import round_to_half_hour
+        from decimal import Decimal
 
-        duration_minutes = int((end_time - start_time).total_seconds() / 60)
-        duration_hours = round_to_half_hour(duration_minutes)
+        from src.mosaic.models.work_session import WorkSession
+
+        duration_minutes = (end_time - start_time).total_seconds() / 60
+        duration_hours = Decimal(str(duration_minutes)) / Decimal("60")
 
         session = WorkSession(
             project_id=project_id,
             date=start_time.date(),
-            start_time=start_time,
-            end_time=end_time,
             duration_hours=duration_hours,
             summary=summary,
             privacy_level=privacy_level,
@@ -174,8 +173,8 @@ class TestGenerateTimecardTool:
 
         # Should have 1 entry with aggregated hours
         assert len(result.entries) == 1
-        assert result.entries[0].total_hours == Decimal("8.0")  # 1.5 + 2.5 + 4.0
-        assert result.total_hours == Decimal("8.0")
+        assert result.entries[0].total_hours == Decimal("7.5")  # 1.5 + 2.25 + 3.75
+        assert result.total_hours == Decimal("7.5")
         # Summary should contain all three summaries
         summary = result.entries[0].summary
         assert summary is not None
@@ -470,11 +469,11 @@ class TestGenerateTimecardTool:
         test_session: AsyncSession,
         project_alpha: Project,
     ):
-        """Test timecard preserves half-hour rounding from work sessions."""
+        """Test timecard preserves exact duration from work sessions."""
         work_date = date(2024, 1, 15)
 
-        # Create session with odd duration that rounds to half-hour
-        # 2:15 -> 2.5 hours
+        # Create session with exact duration (no rounding)
+        # 2:15 = 2.25 hours
         await self._create_work_session(
             test_session,
             project_alpha.id,
@@ -491,8 +490,8 @@ class TestGenerateTimecardTool:
         result = await generate_timecard(input_data, mcp_client)
 
         assert len(result.entries) == 1
-        assert result.entries[0].total_hours == Decimal("2.5")
-        assert result.total_hours == Decimal("2.5")
+        assert result.entries[0].total_hours == Decimal("2.25")
+        assert result.total_hours == Decimal("2.25")
 
     @pytest.mark.asyncio
     async def test_timecard_entries_sorted_by_date_then_project(

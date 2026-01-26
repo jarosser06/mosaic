@@ -4,7 +4,7 @@ CRITICAL: These tests verify timecard generation with multiple sessions
 merged by project and date.
 """
 
-from datetime import date, datetime, timezone
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -74,12 +74,8 @@ class TestTimecardGeneration:
             work_date = date(2024, 1, 15 + i)
             await work_session_service.create_work_session(
                 project_id=project_alpha.id,
-                start_time=datetime.combine(work_date, datetime.min.time()).replace(
-                    hour=9, tzinfo=timezone.utc
-                ),
-                end_time=datetime.combine(work_date, datetime.min.time()).replace(
-                    hour=17, tzinfo=timezone.utc
-                ),
+                date=work_date,
+                duration_hours=Decimal("8.0"),
                 summary=f"Day {i+1} work",
             )
 
@@ -106,26 +102,17 @@ class TestTimecardGeneration:
         work_date = date(2024, 1, 15)
 
         # Create 3 sessions on same day
-        sessions_data = [
-            (
-                datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-                datetime(2024, 1, 15, 10, 30, tzinfo=timezone.utc),
-            ),  # 1.5h
-            (
-                datetime(2024, 1, 15, 11, 0, tzinfo=timezone.utc),
-                datetime(2024, 1, 15, 13, 15, tzinfo=timezone.utc),
-            ),  # 2.5h
-            (
-                datetime(2024, 1, 15, 14, 0, tzinfo=timezone.utc),
-                datetime(2024, 1, 15, 17, 45, tzinfo=timezone.utc),
-            ),  # 4.0h
+        durations = [
+            Decimal("1.5"),  # 1.5h
+            Decimal("2.25"),  # 2.25h
+            Decimal("3.75"),  # 3.75h
         ]
 
-        for start, end in sessions_data:
+        for duration in durations:
             await work_session_service.create_work_session(
                 project_id=project_alpha.id,
-                start_time=start,
-                end_time=end,
+                date=work_date,
+                duration_hours=duration,
             )
 
         await session.commit()
@@ -136,9 +123,9 @@ class TestTimecardGeneration:
             end_date=work_date,
         )
 
-        # Should have 1 entry with total of 1.5 + 2.5 + 4.0 = 8.0 hours
+        # Should have 1 entry with total of 1.5 + 2.25 + 3.75 = 7.5 hours
         assert len(timecard) == 1
-        assert timecard[0]["total_hours"] == Decimal("8.0")
+        assert timecard[0]["total_hours"] == Decimal("7.5")
         assert timecard[0]["date"] == work_date
         assert timecard[0]["project_id"] == project_alpha.id
 
@@ -155,14 +142,14 @@ class TestTimecardGeneration:
         # Create sessions for both projects on same day
         await work_session_service.create_work_session(
             project_id=project_alpha.id,
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=work_date,
+            duration_hours=Decimal("3.0"),
             summary="Alpha work",
         )
         await work_session_service.create_work_session(
             project_id=project_beta.id,
-            start_time=datetime(2024, 1, 15, 13, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 17, 0, tzinfo=timezone.utc),
+            date=work_date,
+            duration_hours=Decimal("4.0"),
             summary="Beta work",
         )
 
@@ -192,14 +179,14 @@ class TestTimecardGeneration:
         # Create sessions with different privacy levels
         await work_session_service.create_work_session(
             project_id=project_alpha.id,
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 11, 0, tzinfo=timezone.utc),
+            date=work_date,
+            duration_hours=Decimal("2.0"),
             privacy_level=PrivacyLevel.PUBLIC,
         )
         await work_session_service.create_work_session(
             project_id=project_alpha.id,
-            start_time=datetime(2024, 1, 15, 13, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 15, 0, tzinfo=timezone.utc),
+            date=work_date,
+            duration_hours=Decimal("2.0"),
             privacy_level=PrivacyLevel.PRIVATE,
         )
 
@@ -228,14 +215,14 @@ class TestTimecardGeneration:
         # Create sessions with different privacy levels
         await work_session_service.create_work_session(
             project_id=project_alpha.id,
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 11, 0, tzinfo=timezone.utc),
+            date=work_date,
+            duration_hours=Decimal("2.0"),
             privacy_level=PrivacyLevel.PUBLIC,
         )
         await work_session_service.create_work_session(
             project_id=project_alpha.id,
-            start_time=datetime(2024, 1, 15, 13, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 15, 0, tzinfo=timezone.utc),
+            date=work_date,
+            duration_hours=Decimal("2.0"),
             privacy_level=PrivacyLevel.PRIVATE,
         )
 
@@ -264,14 +251,14 @@ class TestTimecardGeneration:
         # Create sessions with different summaries
         await work_session_service.create_work_session(
             project_id=project_alpha.id,
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 11, 0, tzinfo=timezone.utc),
+            date=work_date,
+            duration_hours=Decimal("2.0"),
             summary="Morning: Feature development",
         )
         await work_session_service.create_work_session(
             project_id=project_alpha.id,
-            start_time=datetime(2024, 1, 15, 13, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 15, 0, tzinfo=timezone.utc),
+            date=work_date,
+            duration_hours=Decimal("2.0"),
             summary="Afternoon: Bug fixes",
         )
 
@@ -301,12 +288,8 @@ class TestTimecardGeneration:
         for d in dates:
             await work_session_service.create_work_session(
                 project_id=project_alpha.id,
-                start_time=datetime.combine(d, datetime.min.time()).replace(
-                    hour=9, tzinfo=timezone.utc
-                ),
-                end_time=datetime.combine(d, datetime.min.time()).replace(
-                    hour=17, tzinfo=timezone.utc
-                ),
+                date=d,
+                duration_hours=Decimal("8.0"),
             )
 
         await session.commit()
@@ -333,13 +316,13 @@ class TestTimecardGeneration:
         # Create sessions for both projects
         await work_session_service.create_work_session(
             project_id=project_alpha.id,
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=work_date,
+            duration_hours=Decimal("3.0"),
         )
         await work_session_service.create_work_session(
             project_id=project_beta.id,
-            start_time=datetime(2024, 1, 15, 13, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 17, 0, tzinfo=timezone.utc),
+            date=work_date,
+            duration_hours=Decimal("4.0"),
         )
 
         await session.commit()

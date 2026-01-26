@@ -37,7 +37,7 @@ class QueryInput(BaseSchema):
 # Entity result schemas (for discriminated union)
 
 
-class WorkSessionResult(BaseSchema, TimezoneAwareDatetimeMixin):
+class WorkSessionResult(BaseSchema):
     """Work session query result."""
 
     entity_type: Literal["work_session"] = Field(
@@ -50,16 +50,6 @@ class WorkSessionResult(BaseSchema, TimezoneAwareDatetimeMixin):
     date: dt.date = Field(
         description="Work session date",
         examples=["2026-01-15"],
-    )
-
-    start_time: datetime = Field(
-        description="Start time",
-        examples=["2026-01-15T09:00:00-05:00"],
-    )
-
-    end_time: datetime = Field(
-        description="End time",
-        examples=["2026-01-15T17:30:00-05:00"],
     )
 
     project_id: int = Field(description="Project ID", examples=[1, 42])

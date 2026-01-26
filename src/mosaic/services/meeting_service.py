@@ -1,6 +1,7 @@
 """Meeting service with business logic for meeting management."""
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import select
@@ -10,7 +11,6 @@ from ..models.base import PrivacyLevel
 from ..models.meeting import Meeting, MeetingAttendee
 from ..models.project import Project
 from ..models.work_session import WorkSession
-from .time_utils import calculate_duration_rounded
 
 
 class MeetingService:
@@ -166,20 +166,15 @@ class MeetingService:
                 )
                 self.session.add(attendee)
 
-        # Calculate end time for work session
-        from datetime import timedelta
-
-        end_time = start_time + timedelta(minutes=duration_minutes)
-
-        # Calculate rounded duration
-        duration_hours = calculate_duration_rounded(start_time, end_time)
+        # Calculate duration in hours from meeting duration_minutes
+        # Convert minutes to hours (exact conversion, no rounding)
+        duration_hours = Decimal(str(duration_minutes)) / Decimal("60")
 
         # Create work session with same details
+        # Note: Meetings still have times, but work sessions only store date + duration
         work_session = WorkSession(
             project_id=project_id,
             date=start_time.date(),
-            start_time=start_time,
-            end_time=end_time,
             duration_hours=duration_hours,
             summary=summary,  # Inherit summary from meeting
             privacy_level=privacy_level,  # Inherit privacy level

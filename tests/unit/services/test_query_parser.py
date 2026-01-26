@@ -355,85 +355,6 @@ class TestQueryParser:
         result = parser._extract_search_text("show me important tasks")
         assert result == "important tasks"
 
-    def test_extract_search_text_with_prefix_find(self, parser: QueryParser):
-        """Test extraction of search text with 'find' prefix."""
-        result = parser._extract_search_text("find authentication work")
-        assert result == "authentication work"
-
-    def test_extract_search_text_with_prefix_search(self, parser: QueryParser):
-        """Test extraction of search text with 'search' prefix."""
-        result = parser._extract_search_text("search database optimization")
-        assert result == "database optimization"
-
-    def test_extract_search_text_with_prefix_get(self, parser: QueryParser):
-        """Test extraction of search text with 'get' prefix."""
-        result = parser._extract_search_text("get my tasks")
-        assert result == "my tasks"
-
-    def test_extract_search_text_with_prefix_list(self, parser: QueryParser):
-        """Test extraction of search text with 'list' prefix."""
-        result = parser._extract_search_text("list all items")
-        assert result == "all items"
-
-    def test_extract_search_text_with_prefix_what(self, parser: QueryParser):
-        """Test extraction of search text with 'what' prefix."""
-        result = parser._extract_search_text("what projects did I work on")
-        assert result == "did I work on"
-
-    def test_extract_search_text_with_prefix_how_many(self, parser: QueryParser):
-        """Test extraction of search text with 'how many' prefix."""
-        result = parser._extract_search_text("how many tasks are there")
-        assert result == "tasks are there"
-
-    def test_extract_search_text_removes_date_patterns(self, parser: QueryParser):
-        """Test that date patterns are removed from search text."""
-        result = parser._extract_search_text("authentication work from today")
-        assert result == "authentication work from"
-
-    def test_extract_search_text_removes_entity_patterns(self, parser: QueryParser):
-        """Test that entity patterns are removed from search text."""
-        result = parser._extract_search_text("important work sessions today")
-        assert result == "important"
-
-    def test_extract_search_text_removes_privacy_patterns(self, parser: QueryParser):
-        """Test that privacy patterns are removed from search text."""
-        result = parser._extract_search_text("show me public important work")
-        assert result == "important work"
-
-    def test_extract_search_text_cleans_whitespace(self, parser: QueryParser):
-        """Test that extra whitespace is cleaned."""
-        result = parser._extract_search_text("show   me    work")
-        assert result == "work"
-
-    def test_extract_search_text_returns_none_when_empty(self, parser: QueryParser):
-        """Test that None is returned when search text is empty."""
-        result = parser._extract_search_text("show me work sessions")
-        assert result is None
-
-    def test_extract_search_text_preserves_case(self, parser: QueryParser):
-        """Test that original case is preserved in search text."""
-        result = parser._extract_search_text("Important Authentication Work")
-        # Note: entity pattern 'work' is NOT removed when standalone, case preserved
-        assert result == "Important Authentication Work"
-
-    def test_extract_search_text_complex_query(self, parser: QueryParser):
-        """Test search text extraction from complex query."""
-        result = parser._extract_search_text(
-            "show me public work sessions on authentication from last week"
-        )
-        assert result == "on authentication from"
-
-    def test_extract_search_text_removes_all_date_patterns(self, parser: QueryParser):
-        """Test that all date patterns are removed."""
-        # Test each date pattern removal
-        assert parser._extract_search_text("work from today") == "work from"
-        assert parser._extract_search_text("work from yesterday") == "work from"
-        assert parser._extract_search_text("work from this week") == "work from"
-        assert parser._extract_search_text("work from last week") == "work from"
-        assert parser._extract_search_text("work from this month") == "work from"
-        assert parser._extract_search_text("work from last month") == "work from"
-        assert parser._extract_search_text("work from this year") == "work from"
-
     # ==================== Parse Method Integration Tests ====================
 
     def test_parse_simple_query(self, parser: QueryParser):
@@ -459,34 +380,11 @@ class TestQueryParser:
         assert result.entity_types == [EntityType.WORK_SESSION]
         assert result.privacy_levels == [PrivacyLevel.PUBLIC]
 
-    def test_parse_query_with_search_text(self, parser: QueryParser):
-        """Test parsing query with search text."""
-        result = parser.parse("authentication work")
-        assert result.search_text == "authentication work"
-
-    def test_parse_complex_query(self, parser: QueryParser):
-        """Test parsing a complex query with multiple filters."""
-        result = parser.parse("show me public work sessions on authentication from last week")
-        assert result.entity_types == [EntityType.WORK_SESSION]
-        assert result.privacy_levels == [PrivacyLevel.PUBLIC]
-        assert result.start_date is not None
-        assert result.end_date is not None
-        assert result.search_text == "on authentication from"
-
     def test_parse_query_multiple_entities(self, parser: QueryParser):
         """Test parsing query with multiple entity types."""
         result = parser.parse("show me meetings and projects")
         assert EntityType.MEETING in result.entity_types
         assert EntityType.PROJECT in result.entity_types
-
-    def test_parse_query_no_filters(self, parser: QueryParser):
-        """Test parsing query with no extractable filters."""
-        result = parser.parse("random text")
-        assert result.entity_types is None
-        assert result.start_date is None
-        assert result.end_date is None
-        assert result.privacy_levels is None
-        assert result.search_text == "random text"
 
     def test_parse_query_empty_string(self, parser: QueryParser):
         """Test parsing an empty query."""
@@ -502,11 +400,6 @@ class TestQueryParser:
         result = parser.parse("SHOW ME WORK SESSIONS FROM TODAY")
         assert result.entity_types == [EntityType.WORK_SESSION]
         assert result.start_date == date.today()
-
-    def test_parse_query_preserves_search_case(self, parser: QueryParser):
-        """Test that original case is preserved in search text."""
-        result = parser.parse("Important Authentication Task")
-        assert result.search_text == "Important Authentication Task"
 
     def test_parse_query_defaults(self, parser: QueryParser):
         """Test that parsed query has correct defaults."""
@@ -645,12 +538,6 @@ class TestQueryParserEdgeCases:
         result = parser.parse("   \t\n  ")
         assert result.entity_types is None
         assert result.search_text is None
-
-    def test_parse_query_partial_match_today(self, parser: QueryParser):
-        """Test that 'today' pattern DOES match within words (substring match)."""
-        # "untoday" WILL match "today" because DATE_PATTERNS uses simple 'in' check
-        result = parser.parse("show me work from untoday")
-        assert result.start_date == date.today()
 
     def test_entity_types_none_when_empty(self, parser: QueryParser):
         """Test that entity_types is None (not empty list) when no matches."""

@@ -1,6 +1,6 @@
-"""Unit tests for WorkSessionRepository timecard queries."""
+"""Unit tests for WorkSessionRepository (simplified: date + duration only)."""
 
-from datetime import date, datetime, timezone
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -30,8 +30,6 @@ class TestWorkSessionRepositoryBasicQueries:
         ws = WorkSession(
             project_id=project.id,
             date=date(2024, 1, 15),
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("1.0"),
         )
         session.add(ws)
@@ -55,8 +53,6 @@ class TestWorkSessionRepositoryBasicQueries:
             ws = WorkSession(
                 project_id=project.id,
                 date=date(2024, 1, 15 + i),
-                start_time=datetime(2024, 1, 15 + i, 9, 0, tzinfo=timezone.utc),
-                end_time=datetime(2024, 1, 15 + i, 10, 0, tzinfo=timezone.utc),
                 duration_hours=Decimal("1.0"),
             )
             session.add(ws)
@@ -79,8 +75,6 @@ class TestWorkSessionRepositoryBasicQueries:
             ws = WorkSession(
                 project_id=project.id,
                 date=d,
-                start_time=datetime.combine(d, datetime.min.time()).replace(tzinfo=timezone.utc),
-                end_time=datetime.combine(d, datetime.min.time()).replace(tzinfo=timezone.utc),
                 duration_hours=Decimal("1.0"),
             )
             session.add(ws)
@@ -147,12 +141,6 @@ class TestWorkSessionRepositoryTimecardAggregation:
             ws = WorkSession(
                 project_id=project.id,
                 date=work_date,
-                start_time=datetime.combine(work_date, datetime.min.time()).replace(
-                    tzinfo=timezone.utc
-                ),
-                end_time=datetime.combine(work_date, datetime.min.time()).replace(
-                    tzinfo=timezone.utc
-                ),
                 duration_hours=hours,
                 privacy_level=privacy,
             )
@@ -291,15 +279,11 @@ class TestWorkSessionRepositoryTimecardAggregation:
         ws1 = WorkSession(
             project_id=project1.id,
             date=date(2024, 1, 15),
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("2.0"),
         )
         ws2 = WorkSession(
             project_id=project2.id,
             date=date(2024, 1, 15),
-            start_time=datetime(2024, 1, 15, 11, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
             duration_hours=Decimal("3.0"),
         )
         session.add(ws1)

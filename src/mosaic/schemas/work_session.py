@@ -1,35 +1,33 @@
 """Schemas for work session operations."""
 
+from datetime import date as date_type
 from datetime import datetime
 from decimal import Decimal
 
 from pydantic import Field
 
-from mosaic.schemas.common import (
-    BaseSchema,
-    PrivacyLevel,
-    TimeRangeMixin,
-    TimezoneAwareDatetimeMixin,
-)
+from mosaic.schemas.common import BaseSchema, PrivacyLevel
 
 
-class LogWorkSessionInput(BaseSchema, TimezoneAwareDatetimeMixin, TimeRangeMixin):
+class LogWorkSessionInput(BaseSchema):
     """Input schema for logging a new work session."""
-
-    start_time: datetime = Field(
-        description="Start time of work session (timezone-aware)",
-        examples=["2026-01-15T09:00:00-05:00"],
-    )
-
-    end_time: datetime = Field(
-        description="End time of work session (timezone-aware)",
-        examples=["2026-01-15T17:30:00-05:00"],
-    )
 
     project_id: int = Field(
         description="ID of project this work session belongs to",
         gt=0,
         examples=[1, 42],
+    )
+
+    date: date_type = Field(
+        description="Work date (YYYY-MM-DD)",
+        examples=["2026-01-15"],
+    )
+
+    duration_hours: Decimal = Field(
+        description="Hours worked (e.g., 2.5)",
+        gt=0,
+        le=24,
+        examples=[2.5, 8.0, 1.5],
     )
 
     description: str | None = Field(
@@ -52,7 +50,7 @@ class LogWorkSessionInput(BaseSchema, TimezoneAwareDatetimeMixin, TimeRangeMixin
     )
 
 
-class LogWorkSessionOutput(BaseSchema, TimezoneAwareDatetimeMixin):
+class LogWorkSessionOutput(BaseSchema):
     """Output schema for logged work session."""
 
     id: int = Field(
@@ -60,23 +58,18 @@ class LogWorkSessionOutput(BaseSchema, TimezoneAwareDatetimeMixin):
         examples=[1, 42],
     )
 
-    start_time: datetime = Field(
-        description="Start time of work session",
-        examples=["2026-01-15T09:00:00-05:00"],
-    )
-
-    end_time: datetime = Field(
-        description="End time of work session",
-        examples=["2026-01-15T17:30:00-05:00"],
-    )
-
     project_id: int = Field(
         description="ID of associated project",
         examples=[1, 42],
     )
 
+    date: date_type = Field(
+        description="Work date",
+        examples=["2026-01-15"],
+    )
+
     duration_hours: Decimal = Field(
-        description="Calculated duration in hours with half-hour rounding",
+        description="Duration in hours",
         examples=[8.5, 4.0, 2.5],
     )
 
@@ -106,26 +99,28 @@ class LogWorkSessionOutput(BaseSchema, TimezoneAwareDatetimeMixin):
     )
 
 
-class UpdateWorkSessionInput(BaseSchema, TimezoneAwareDatetimeMixin, TimeRangeMixin):
+class UpdateWorkSessionInput(BaseSchema):
     """Input schema for updating an existing work session."""
-
-    start_time: datetime | None = Field(
-        default=None,
-        description="New start time (timezone-aware)",
-        examples=["2026-01-15T09:00:00-05:00"],
-    )
-
-    end_time: datetime | None = Field(
-        default=None,
-        description="New end time (timezone-aware)",
-        examples=["2026-01-15T17:30:00-05:00"],
-    )
 
     project_id: int | None = Field(
         default=None,
         description="New project ID",
         gt=0,
         examples=[1, 42],
+    )
+
+    date: date_type | None = Field(
+        default=None,
+        description="New work date (YYYY-MM-DD)",
+        examples=["2026-01-15"],
+    )
+
+    duration_hours: Decimal | None = Field(
+        default=None,
+        description="New hours worked (e.g., 2.5)",
+        gt=0,
+        le=24,
+        examples=[2.5, 8.0, 1.5],
     )
 
     description: str | None = Field(
@@ -148,7 +143,7 @@ class UpdateWorkSessionInput(BaseSchema, TimezoneAwareDatetimeMixin, TimeRangeMi
     )
 
 
-class UpdateWorkSessionOutput(BaseSchema, TimezoneAwareDatetimeMixin):
+class UpdateWorkSessionOutput(BaseSchema):
     """Output schema for updated work session."""
 
     id: int = Field(
@@ -156,23 +151,18 @@ class UpdateWorkSessionOutput(BaseSchema, TimezoneAwareDatetimeMixin):
         examples=[1, 42],
     )
 
-    start_time: datetime = Field(
-        description="Start time of work session",
-        examples=["2026-01-15T09:00:00-05:00"],
-    )
-
-    end_time: datetime = Field(
-        description="End time of work session",
-        examples=["2026-01-15T17:30:00-05:00"],
-    )
-
     project_id: int = Field(
         description="ID of associated project",
         examples=[1, 42],
     )
 
+    date: date_type = Field(
+        description="Work date",
+        examples=["2026-01-15"],
+    )
+
     duration_hours: Decimal = Field(
-        description="Calculated duration in hours with half-hour rounding",
+        description="Duration in hours",
         examples=[8.5, 4.0, 2.5],
     )
 

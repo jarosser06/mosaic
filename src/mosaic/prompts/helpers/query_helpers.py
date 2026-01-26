@@ -51,7 +51,7 @@ async def get_work_sessions_by_date_range(
         .where(WorkSession.date >= start_date)
         .where(WorkSession.date <= end_date)
         .options(joinedload(WorkSession.project))
-        .order_by(WorkSession.date, WorkSession.start_time)
+        .order_by(WorkSession.date)
     )
 
     # Apply privacy filter if specified

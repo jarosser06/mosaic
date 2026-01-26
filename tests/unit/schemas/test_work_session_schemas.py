@@ -1,6 +1,6 @@
-"""Tests for work session schemas (12 test cases)."""
+"""Tests for work session schemas (simplified: date + duration only)."""
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 import pytest
@@ -17,19 +17,18 @@ from src.mosaic.schemas.work_session import (
 
 def test_log_work_session_input_valid():
     """Test valid LogWorkSessionInput creation."""
-    start = datetime(2026, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
-    end = datetime(2026, 1, 15, 17, 0, 0, tzinfo=timezone.utc)
+    work_date = date(2026, 1, 15)
 
     schema = LogWorkSessionInput(
-        start_time=start,
-        end_time=end,
+        date=work_date,
+        duration_hours=Decimal("8.0"),
         project_id=42,
         description="Implemented feature X",
         tags=["backend", "api"],
     )
 
-    assert schema.start_time == start
-    assert schema.end_time == end
+    assert schema.date == work_date
+    assert schema.duration_hours == Decimal("8.0")
     assert schema.project_id == 42
     assert schema.description == "Implemented feature X"
     assert schema.privacy_level == PrivacyLevel.PRIVATE  # Default
@@ -38,75 +37,126 @@ def test_log_work_session_input_valid():
 
 def test_log_work_session_input_privacy_default():
     """Test that privacy_level defaults to PRIVATE."""
-    start = datetime(2026, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
-    end = datetime(2026, 1, 15, 17, 0, 0, tzinfo=timezone.utc)
-
     schema = LogWorkSessionInput(
-        start_time=start,
-        end_time=end,
+        date=date(2026, 1, 15),
+        duration_hours=Decimal("8.0"),
         project_id=1,
     )
 
     assert schema.privacy_level == PrivacyLevel.PRIVATE
 
 
-def test_log_work_session_input_rejects_naive_datetime():
-    """Test that naive datetimes are rejected."""
-    start = datetime(2026, 1, 15, 9, 0, 0)  # Naive
-    end = datetime(2026, 1, 15, 17, 0, 0, tzinfo=timezone.utc)
+@pytest.mark.parametrize(
+    "duration",
+    [
+        Decimal("0.1"),  # Very small
+        Decimal("0.5"),  # 30 minutes
+        Decimal("1.0"),  # 1 hour
+        Decimal("8.0"),  # Full day
+        Decimal("16.0"),  # Long day
+        Decimal("24.0"),  # Maximum
+    ],
+)
+def test_log_work_session_input_valid_durations(duration: Decimal):
+    """Test that valid duration values are accepted."""
+    schema = LogWorkSessionInput(
+        date=date(2026, 1, 15),
+        duration_hours=duration,
+        project_id=1,
+    )
 
+    assert schema.duration_hours == duration
+
+
+def test_log_work_session_input_rejects_zero_duration():
+    """Test that zero duration is rejected."""
     with pytest.raises(ValidationError) as exc_info:
-        LogWorkSessionInput(start_time=start, end_time=end, project_id=1)
-    assert "Datetime must be timezone-aware" in str(exc_info.value)
+        LogWorkSessionInput(
+            date=date(2026, 1, 15),
+            duration_hours=Decimal("0.0"),
+            project_id=1,
+        )
+    assert "greater than 0" in str(exc_info.value).lower()
 
 
-def test_log_work_session_input_rejects_end_before_start():
-    """Test that end_time before start_time is rejected."""
-    start = datetime(2026, 1, 15, 17, 0, 0, tzinfo=timezone.utc)
-    end = datetime(2026, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
-
+def test_log_work_session_input_rejects_negative_duration():
+    """Test that negative duration is rejected."""
     with pytest.raises(ValidationError) as exc_info:
-        LogWorkSessionInput(start_time=start, end_time=end, project_id=1)
-    assert "end_time must be after start_time" in str(exc_info.value)
+        LogWorkSessionInput(
+            date=date(2026, 1, 15),
+            duration_hours=Decimal("-1.0"),
+            project_id=1,
+        )
+    assert "greater than 0" in str(exc_info.value).lower()
+
+
+def test_log_work_session_input_rejects_duration_over_24():
+    """Test that duration > 24 hours is rejected."""
+    with pytest.raises(ValidationError) as exc_info:
+        LogWorkSessionInput(
+            date=date(2026, 1, 15),
+            duration_hours=Decimal("24.1"),
+            project_id=1,
+        )
+    assert "less than or equal to 24" in str(exc_info.value).lower()
+
+
+def test_log_work_session_input_accepts_exactly_24_hours():
+    """Test that exactly 24.0 hours is accepted (boundary case)."""
+    schema = LogWorkSessionInput(
+        date=date(2026, 1, 15),
+        duration_hours=Decimal("24.0"),
+        project_id=1,
+    )
+
+    assert schema.duration_hours == Decimal("24.0")
 
 
 def test_log_work_session_input_rejects_invalid_project_id():
     """Test that project_id must be > 0."""
-    start = datetime(2026, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
-    end = datetime(2026, 1, 15, 17, 0, 0, tzinfo=timezone.utc)
-
     with pytest.raises(ValidationError) as exc_info:
-        LogWorkSessionInput(start_time=start, end_time=end, project_id=0)
+        LogWorkSessionInput(
+            date=date(2026, 1, 15),
+            duration_hours=Decimal("8.0"),
+            project_id=0,
+        )
     assert "greater than 0" in str(exc_info.value).lower()
 
 
 def test_log_work_session_input_description_max_length():
     """Test that description exceeding max_length is rejected."""
-    start = datetime(2026, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
-    end = datetime(2026, 1, 15, 17, 0, 0, tzinfo=timezone.utc)
     long_description = "x" * 2001  # Exceeds 2000 max
 
     with pytest.raises(ValidationError) as exc_info:
         LogWorkSessionInput(
-            start_time=start,
-            end_time=end,
+            date=date(2026, 1, 15),
+            duration_hours=Decimal("8.0"),
             project_id=1,
             description=long_description,
         )
     assert "at most 2000 characters" in str(exc_info.value).lower()
 
 
+def test_log_work_session_input_tags_default():
+    """Test that tags default to empty list."""
+    schema = LogWorkSessionInput(
+        date=date(2026, 1, 15),
+        duration_hours=Decimal("8.0"),
+        project_id=1,
+    )
+
+    assert schema.tags == []
+
+
 def test_log_work_session_output_valid():
     """Test valid LogWorkSessionOutput creation."""
-    start = datetime(2026, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
-    end = datetime(2026, 1, 15, 17, 0, 0, tzinfo=timezone.utc)
+    work_date = date(2026, 1, 15)
     created = datetime(2026, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
     updated = datetime(2026, 1, 15, 9, 5, 0, tzinfo=timezone.utc)
 
     schema = LogWorkSessionOutput(
         id=1,
-        start_time=start,
-        end_time=end,
+        date=work_date,
         project_id=42,
         duration_hours=Decimal("8.0"),
         description="Implemented feature X",
@@ -117,6 +167,7 @@ def test_log_work_session_output_valid():
     )
 
     assert schema.id == 1
+    assert schema.date == work_date
     assert schema.duration_hours == Decimal("8.0")
     assert schema.privacy_level == PrivacyLevel.PRIVATE
 
@@ -130,42 +181,46 @@ def test_update_work_session_input_partial_update():
 
     assert schema.description == "Updated description"
     assert schema.privacy_level == PrivacyLevel.INTERNAL
-    assert schema.start_time is None
-    assert schema.end_time is None
+    assert schema.date is None
+    assert schema.duration_hours is None
     assert schema.project_id is None
 
 
-def test_update_work_session_input_validates_time_range():
-    """Test that UpdateWorkSessionInput validates time range when both provided."""
-    start = datetime(2026, 1, 15, 17, 0, 0, tzinfo=timezone.utc)
-    end = datetime(2026, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
+def test_update_work_session_input_update_duration():
+    """Test UpdateWorkSessionInput can update duration with validation."""
+    schema = UpdateWorkSessionInput(duration_hours=Decimal("4.5"))
 
+    assert schema.duration_hours == Decimal("4.5")
+
+
+def test_update_work_session_input_rejects_invalid_duration():
+    """Test that UpdateWorkSessionInput validates duration when provided."""
     with pytest.raises(ValidationError) as exc_info:
-        UpdateWorkSessionInput(start_time=start, end_time=end)
-    assert "end_time must be after start_time" in str(exc_info.value)
+        UpdateWorkSessionInput(duration_hours=Decimal("25.0"))  # > 24 hours
+    assert "less than or equal to 24" in str(exc_info.value).lower()
 
 
-def test_update_work_session_input_allows_only_start_or_end():
-    """Test that UpdateWorkSessionInput allows only start_time or only end_time."""
-    start = datetime(2026, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
+def test_update_work_session_input_all_fields_optional():
+    """Test that UpdateWorkSessionInput allows all fields to be None."""
+    schema = UpdateWorkSessionInput()
 
-    # Only start_time is valid (validation happens when both are present)
-    schema = UpdateWorkSessionInput(start_time=start)
-    assert schema.start_time == start
-    assert schema.end_time is None
+    assert schema.date is None
+    assert schema.duration_hours is None
+    assert schema.project_id is None
+    assert schema.description is None
+    assert schema.privacy_level is None
+    assert schema.tags is None
 
 
 def test_update_work_session_output_valid():
     """Test valid UpdateWorkSessionOutput creation."""
-    start = datetime(2026, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
-    end = datetime(2026, 1, 15, 17, 0, 0, tzinfo=timezone.utc)
+    work_date = date(2026, 1, 15)
     created = datetime(2026, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
     updated = datetime(2026, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
 
     schema = UpdateWorkSessionOutput(
         id=1,
-        start_time=start,
-        end_time=end,
+        date=work_date,
         project_id=42,
         duration_hours=Decimal("8.0"),
         description="Updated work",
@@ -176,19 +231,17 @@ def test_update_work_session_output_valid():
     )
 
     assert schema.id == 1
+    assert schema.date == work_date
     assert schema.privacy_level == PrivacyLevel.INTERNAL
     assert schema.tags == ["backend", "updated"]
 
 
-def test_log_work_session_input_empty_tags_default():
-    """Test that tags default to empty list."""
-    start = datetime(2026, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
-    end = datetime(2026, 1, 15, 17, 0, 0, tzinfo=timezone.utc)
-
+def test_log_work_session_input_decimal_precision():
+    """Test that duration_hours maintains decimal precision."""
     schema = LogWorkSessionInput(
-        start_time=start,
-        end_time=end,
+        date=date(2026, 1, 15),
+        duration_hours=Decimal("2.33333"),
         project_id=1,
     )
 
-    assert schema.tags == []
+    assert schema.duration_hours == Decimal("2.33333")

@@ -46,7 +46,7 @@ async def test_entity_fixtures_in_test_db(test_session, employer, client, projec
 async def test_database_isolation(test_session, project):
     """Verify each test gets a fresh database."""
 
-    from datetime import date, datetime, timezone
+    from datetime import date
     from decimal import Decimal
 
     from src.mosaic.models.work_session import WorkSession
@@ -56,8 +56,6 @@ async def test_database_isolation(test_session, project):
     ws = WorkSession(
         project_id=project.id,
         date=date(2024, 1, 15),
-        start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-        end_time=datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
         duration_hours=Decimal("1.0"),
     )
     test_session.add(ws)

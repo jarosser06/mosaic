@@ -4,7 +4,7 @@ Tests end-to-end work session logging through real MCP server,
 including validation, duration calculation, and database persistence.
 """
 
-from datetime import datetime, timezone
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -29,8 +29,8 @@ class TestLogWorkSessionTool:
     ):
         """Test logging a basic work session through real MCP tool."""
         input_data = LogWorkSessionInput(
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 17, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
+            duration_hours=Decimal("8.0"),
             project_id=project.id,
             description="Implemented feature X",
         )
@@ -62,10 +62,10 @@ class TestLogWorkSessionTool:
         project: Project,
     ):
         """Test work session with half-hour rounding."""
-        # 2 hours 15 minutes -> should round to 2.5 hours
+        # 2.5 hours
         input_data = LogWorkSessionInput(
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 11, 15, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
+            duration_hours=Decimal("2.5"),
             project_id=project.id,
         )
 
@@ -80,10 +80,10 @@ class TestLogWorkSessionTool:
         test_session: AsyncSession,
         project: Project,
     ):
-        """Test that 31 minutes rounds up to 1.0 hour."""
+        """Test that 1.0 hour can be logged."""
         input_data = LogWorkSessionInput(
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 9, 31, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
+            duration_hours=Decimal("1.0"),
             project_id=project.id,
         )
 
@@ -100,8 +100,8 @@ class TestLogWorkSessionTool:
     ):
         """Test logging work session with specific privacy level."""
         input_data = LogWorkSessionInput(
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
+            duration_hours=Decimal("3.0"),
             project_id=project.id,
             privacy_level=PrivacyLevel.PUBLIC,
         )
@@ -119,8 +119,8 @@ class TestLogWorkSessionTool:
     ):
         """Test logging work session with tags."""
         input_data = LogWorkSessionInput(
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
+            duration_hours=Decimal("3.0"),
             project_id=project.id,
             tags=["backend", "api", "authentication"],
         )
@@ -137,8 +137,8 @@ class TestLogWorkSessionTool:
     ):
         """Test logging work session with non-existent project."""
         input_data = LogWorkSessionInput(
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
+            duration_hours=Decimal("3.0"),
             project_id=99999,  # Non-existent project
         )
 
@@ -146,17 +146,17 @@ class TestLogWorkSessionTool:
             await log_work_session(input_data, mcp_client)
 
     @pytest.mark.asyncio
-    async def test_log_work_session_end_before_start(
+    async def test_log_work_session_invalid_duration(
         self,
         mcp_client,
         test_session: AsyncSession,
         project: Project,
     ):
-        """Test logging work session with end_time before start_time."""
+        """Test logging work session with invalid duration."""
         with pytest.raises(ValidationError):
             LogWorkSessionInput(
-                start_time=datetime(2024, 1, 15, 17, 0, tzinfo=timezone.utc),
-                end_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
+                date=date(2024, 1, 15),
+                duration_hours=Decimal("0.0"),  # Zero duration
                 project_id=project.id,
             )
 
@@ -169,8 +169,8 @@ class TestLogWorkSessionTool:
     ):
         """Test that created_at and updated_at timestamps are set."""
         input_data = LogWorkSessionInput(
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
+            duration_hours=Decimal("3.0"),
             project_id=project.id,
         )
 
@@ -191,8 +191,8 @@ class TestLogWorkSessionTool:
         from src.mosaic.repositories.work_session_repository import WorkSessionRepository
 
         input_data = LogWorkSessionInput(
-            start_time=datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
+            date=date(2024, 1, 15),
+            duration_hours=Decimal("3.0"),
             project_id=project.id,
             description="Test work",
         )

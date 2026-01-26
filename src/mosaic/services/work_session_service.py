@@ -1,6 +1,7 @@
 """Work session service with business logic for time tracking."""
 
-from datetime import date, datetime
+from datetime import date
+from decimal import Decimal
 from typing import Any, Optional
 
 from sqlalchemy import func, select
@@ -8,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.base import PrivacyLevel
 from ..models.work_session import WorkSession
-from .time_utils import calculate_duration_rounded
+from .time_utils import validate_duration_hours
 
 
 class WorkSessionService:
@@ -26,41 +27,36 @@ class WorkSessionService:
     async def create_work_session(
         self,
         project_id: int,
-        start_time: datetime,
-        end_time: datetime,
+        date: date,
+        duration_hours: Decimal,
         summary: Optional[str] = None,
         privacy_level: PrivacyLevel = PrivacyLevel.PRIVATE,
         tags: Optional[list[str]] = None,
     ) -> WorkSession:
         """
-        Create work session with automatic half-hour duration rounding.
+        Create work session with date and duration.
 
         Args:
             project_id: Project the work was done for
-            start_time: When the work started
-            end_time: When the work ended
+            date: Which day the work happened
+            duration_hours: How many hours worked
             summary: Optional description of work done
             privacy_level: Privacy level (defaults to PRIVATE)
             tags: Optional tags for categorization
 
         Returns:
-            WorkSession: Created work session with rounded duration
+            WorkSession: Created work session
 
         Raises:
-            ValueError: If end_time is before start_time
+            ValueError: If duration is invalid
         """
-        # Calculate rounded duration using time_utils
-        duration_hours = calculate_duration_rounded(start_time, end_time)
-
-        # Extract date from start_time
-        session_date = start_time.date()
+        # Validate duration
+        validate_duration_hours(duration_hours)
 
         # Create work session
         work_session = WorkSession(
             project_id=project_id,
-            date=session_date,
-            start_time=start_time,
-            end_time=end_time,
+            date=date,
             duration_hours=duration_hours,
             summary=summary,
             privacy_level=privacy_level,
@@ -76,27 +72,35 @@ class WorkSessionService:
     async def update_work_session(
         self,
         work_session_id: int,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        project_id: Optional[int] = None,
+        date: Optional[date] = None,
+        duration_hours: Optional[Decimal] = None,
         summary: Optional[str] = None,
         privacy_level: Optional[PrivacyLevel] = None,
+        tags: Optional[list[str]] = None,
     ) -> WorkSession:
         """
-        Update work session and recalculate duration if times changed.
+        Update work session fields.
 
         Args:
             work_session_id: ID of work session to update
-            start_time: New start time (optional)
-            end_time: New end time (optional)
+            project_id: New project ID (optional)
+            date: New date (optional)
+            duration_hours: New duration (optional)
             summary: New summary (optional)
             privacy_level: New privacy level (optional)
+            tags: New tags (optional)
 
         Returns:
             WorkSession: Updated work session
 
         Raises:
-            ValueError: If work session not found or times invalid
+            ValueError: If work session not found or duration invalid
         """
+        # Validate duration if provided
+        if duration_hours is not None:
+            validate_duration_hours(duration_hours)
+
         # Fetch existing work session
         result = await self.session.execute(
             select(WorkSession).where(WorkSession.id == work_session_id)
@@ -106,18 +110,15 @@ class WorkSessionService:
         if work_session is None:
             raise ValueError(f"WorkSession with id {work_session_id} not found")
 
-        # Track if we need to recalculate duration
-        recalculate = False
-
         # Update fields
-        if start_time is not None:
-            work_session.start_time = start_time
-            work_session.date = start_time.date()
-            recalculate = True
+        if project_id is not None:
+            work_session.project_id = project_id
 
-        if end_time is not None:
-            work_session.end_time = end_time
-            recalculate = True
+        if date is not None:
+            work_session.date = date
+
+        if duration_hours is not None:
+            work_session.duration_hours = duration_hours
 
         if summary is not None:
             work_session.summary = summary
@@ -125,11 +126,8 @@ class WorkSessionService:
         if privacy_level is not None:
             work_session.privacy_level = privacy_level
 
-        # Recalculate duration if times changed
-        if recalculate:
-            work_session.duration_hours = calculate_duration_rounded(
-                work_session.start_time, work_session.end_time
-            )
+        if tags is not None:
+            work_session.tags = tags
 
         await self.session.flush()
         await self.session.refresh(work_session)

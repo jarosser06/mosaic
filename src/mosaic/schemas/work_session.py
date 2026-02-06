@@ -190,3 +190,27 @@ class UpdateWorkSessionOutput(BaseSchema):
         description="Timestamp when work session was last updated",
         examples=["2026-01-15T09:05:00-05:00"],
     )
+
+
+class DeleteWorkSessionInput(BaseSchema):
+    """Input schema for deleting a work session."""
+
+    work_session_id: int = Field(
+        description="ID of the work session to delete",
+        gt=0,
+        examples=[1, 42],
+    )
+
+
+class DeleteWorkSessionOutput(BaseSchema):
+    """Output schema for deleted work session confirmation."""
+
+    success: bool = Field(
+        description="Whether the deletion was successful",
+        examples=[True],
+    )
+
+    message: str = Field(
+        description="Human-readable confirmation message",
+        examples=["Work session deleted successfully"],
+    )

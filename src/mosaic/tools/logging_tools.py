@@ -7,17 +7,29 @@ from mcp.server.fastmcp import Context
 
 from ..repositories.client_repository import ClientRepository
 from ..repositories.employer_repository import EmployerRepository
+from ..repositories.meeting_repository import MeetingRepository
 from ..repositories.note_repository import NoteRepository
 from ..repositories.person_repository import PersonRepository
 from ..repositories.project_repository import ProjectRepository
+from ..repositories.work_session_repository import WorkSessionRepository
 from ..schemas.client import AddClientInput, AddClientOutput
 from ..schemas.employer import AddEmployerInput, AddEmployerOutput
-from ..schemas.meeting import LogMeetingInput, LogMeetingOutput
+from ..schemas.meeting import (
+    DeleteMeetingInput,
+    DeleteMeetingOutput,
+    LogMeetingInput,
+    LogMeetingOutput,
+)
 from ..schemas.note import AddNoteInput, AddNoteOutput
 from ..schemas.person import AddPersonInput, AddPersonOutput
 from ..schemas.project import AddProjectInput, AddProjectOutput
 from ..schemas.reminder import AddReminderInput, AddReminderOutput
-from ..schemas.work_session import LogWorkSessionInput, LogWorkSessionOutput
+from ..schemas.work_session import (
+    DeleteWorkSessionInput,
+    DeleteWorkSessionOutput,
+    LogWorkSessionInput,
+    LogWorkSessionOutput,
+)
 from ..server import AppContext, mcp
 from ..services.meeting_service import MeetingService
 from ..services.work_session_service import WorkSessionService
@@ -486,4 +498,101 @@ async def add_reminder(
         except Exception as e:
             await session.rollback()
             logger.error(f"Failed to add reminder: {e}", exc_info=True)
+            raise
+
+
+@mcp.tool()
+async def delete_work_session(
+    input: DeleteWorkSessionInput, ctx: Context[Any, AppContext, DeleteWorkSessionInput]
+) -> DeleteWorkSessionOutput:
+    """
+    Delete a work session permanently.
+
+    Removes a work session from the system. This is irreversible.
+
+    Args:
+        input: Work session ID to delete
+        ctx: MCP context with app resources
+
+    Returns:
+        DeleteWorkSessionOutput: Success status and confirmation message
+
+    Raises:
+        ValueError: If work session not found
+    """
+    app_ctx = ctx.request_context.lifespan_context
+
+    async with app_ctx.session_factory() as session:
+        try:
+            repo = WorkSessionRepository(session)
+
+            # Check if work session exists
+            work_session = await repo.get_by_id(input.work_session_id)
+            if not work_session:
+                raise ValueError(f"Work session with ID {input.work_session_id} not found")
+
+            # Delete the work session
+            await repo.delete(input.work_session_id)
+
+            # Commit transaction
+            await session.commit()
+
+            logger.info(f"Deleted work session {input.work_session_id}")
+
+            return DeleteWorkSessionOutput(
+                success=True,
+                message=f"Work session {input.work_session_id} deleted successfully",
+            )
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"Failed to delete work session: {e}", exc_info=True)
+            raise
+
+
+@mcp.tool()
+async def delete_meeting(
+    input: DeleteMeetingInput, ctx: Context[Any, AppContext, DeleteMeetingInput]
+) -> DeleteMeetingOutput:
+    """
+    Delete a meeting permanently.
+
+    Deletes the meeting and all associated attendees (CASCADE).
+    This is irreversible.
+
+    Args:
+        input: Meeting ID to delete
+        ctx: MCP context with app resources
+
+    Returns:
+        DeleteMeetingOutput: Success status and confirmation message
+
+    Raises:
+        ValueError: If meeting not found
+    """
+    app_ctx = ctx.request_context.lifespan_context
+
+    async with app_ctx.session_factory() as session:
+        try:
+            repo = MeetingRepository(session)
+
+            # Check if meeting exists
+            meeting = await repo.get_by_id(input.meeting_id)
+            if not meeting:
+                raise ValueError(f"Meeting with ID {input.meeting_id} not found")
+
+            # Delete the meeting
+            await repo.delete(input.meeting_id)
+
+            # Commit transaction
+            await session.commit()
+
+            logger.info(f"Deleted meeting {input.meeting_id}")
+
+            return DeleteMeetingOutput(
+                success=True,
+                message=f"Meeting {input.meeting_id} deleted successfully",
+            )
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"Failed to delete meeting: {e}", exc_info=True)
             raise

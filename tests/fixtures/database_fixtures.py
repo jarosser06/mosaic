@@ -12,7 +12,7 @@ from src.mosaic.models.base import Base
 
 # Test database URL - use separate test database on PostgreSQL
 # Password must match docker-compose.yml (default: changeme)
-TEST_DATABASE_URL = "postgresql+asyncpg://mosaic:changeme@localhost:5433/mosaic_test"
+TEST_DATABASE_URL = "postgresql+asyncpg://mosaic:changeme@localhost:5678/mosaic_test"
 
 
 @pytest.fixture(scope="function")

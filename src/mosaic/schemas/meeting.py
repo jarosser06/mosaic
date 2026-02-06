@@ -237,3 +237,27 @@ class UpdateMeetingOutput(BaseSchema, TimezoneAwareDatetimeMixin):
         description="Timestamp when meeting was last updated",
         examples=["2026-01-15T14:05:00-05:00"],
     )
+
+
+class DeleteMeetingInput(BaseSchema):
+    """Input schema for deleting a meeting."""
+
+    meeting_id: int = Field(
+        description="ID of the meeting to delete",
+        gt=0,
+        examples=[1, 42],
+    )
+
+
+class DeleteMeetingOutput(BaseSchema):
+    """Output schema for deleted meeting confirmation."""
+
+    success: bool = Field(
+        description="Whether the deletion was successful",
+        examples=[True],
+    )
+
+    message: str = Field(
+        description="Human-readable confirmation message",
+        examples=["Meeting deleted successfully"],
+    )
